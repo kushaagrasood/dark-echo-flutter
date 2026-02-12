@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/dark_echo.iml" filepath="$PROJECT_DIR$/dark_echo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/dark_echo_android.iml" filepath="$PROJECT_DIR$/android/dark_echo_android.iml" />
+    </modules>
+  </component>
+</project>
