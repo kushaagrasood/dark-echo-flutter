@@ -11,11 +11,18 @@ class EchoWave {
   EchoWave({required this.center, this.radius = 0.0, this.opacity = 1.0});
 }
 
+// 1. Define the FSM States
+enum BotState { idle, investigating, searching, chasing, cooldown }
+
 class Bot {
   Offset position;
   double opacity;
   Offset? target;
-  final double speed = 90.0; 
+  final double baseSpeed = 90.0; 
+  
+  // FSM Variables
+  BotState state = BotState.idle;
+  double stateTimer = 0.0;
 
   Bot({
     required this.position,
@@ -50,11 +57,11 @@ class GameModel extends ChangeNotifier {
   final AudioPlayer _bgmPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _footstepsPlayer = AudioPlayer();
-  final AudioPlayer _heartbeatPlayer = AudioPlayer(); // Added Heartbeat Player
+  final AudioPlayer _heartbeatPlayer = AudioPlayer(); 
   final AudioPlayer _jumpscarePlayer = AudioPlayer();
   
   bool _isFootstepsPlaying = false;
-  bool _isHeartbeatPlaying = false; // Added Heartbeat State
+  bool _isHeartbeatPlaying = false;
 
   GameModel() {
     _loadBestTime();
@@ -64,7 +71,7 @@ class GameModel extends ChangeNotifier {
   void _initAudio() async {
     await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
     await _footstepsPlayer.setReleaseMode(ReleaseMode.loop);
-    await _heartbeatPlayer.setReleaseMode(ReleaseMode.loop); // Loop the heartbeat
+    await _heartbeatPlayer.setReleaseMode(ReleaseMode.loop);
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
   }
 
@@ -73,7 +80,7 @@ class GameModel extends ChangeNotifier {
     _bgmPlayer.dispose();
     _sfxPlayer.dispose();
     _footstepsPlayer.dispose();
-    _heartbeatPlayer.dispose(); // Dispose to prevent memory leaks
+    _heartbeatPlayer.dispose();
     _jumpscarePlayer.dispose();
     super.dispose();
   }
@@ -113,7 +120,7 @@ class GameModel extends ChangeNotifier {
     // --- PROXIMITY AUDIO LOGIC ---
     double botDist = (bots[0].position - playerPos).distance;
     
-    // 1. Footsteps Logic (Outer Radius)
+    // Footsteps
     double hearingThreshold = 300.0; 
     if (botDist < hearingThreshold) {
       if (!_isFootstepsPlaying) {
@@ -131,19 +138,15 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // 2. Heartbeat Logic (Critical Inner Radius)
+    // Heartbeat
     double heartbeatThreshold = 150.0;
     if (botDist < heartbeatThreshold) {
       if (!_isHeartbeatPlaying) {
         _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
         _isHeartbeatPlaying = true;
       }
-      
-      // Volume scales from 0.0 at the edge (150px) to 1.0 at point-blank (0px)
       double hbVol = 1.0 - (botDist / heartbeatThreshold);
       _heartbeatPlayer.setVolume(hbVol.clamp(0.0, 1.0));
-      
-      // Heartbeat playback rate increases dramatically as it gets closer
       double hbRate = 1.0 + (1.5 * (1.0 - (botDist / heartbeatThreshold)));
       _heartbeatPlayer.setPlaybackRate(hbRate.clamp(1.0, 2.5));
     } else {
@@ -159,7 +162,7 @@ class GameModel extends ChangeNotifier {
         isGameWon = true;
         _bgmPlayer.stop();
         _footstepsPlayer.stop();
-        _heartbeatPlayer.stop(); // Stop heartbeat instantly
+        _heartbeatPlayer.stop();
         _sfxPlayer.play(AssetSource('audio/victory.ogg')); 
         
         if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
@@ -169,35 +172,114 @@ class GameModel extends ChangeNotifier {
       }
     }
 
+    // --- BOT AI & LOSS STATE ---
     for (var bot in bots) {
-      for (var wave in waves) {
-        if ((bot.position - wave.center).distance <= wave.radius) {
-          bot.target = wave.center; 
-        }
-      }
+      _updateBotFSM(bot, dt, botDist);
 
-      if (bot.target != null) {
-        Offset dir = bot.target! - bot.position;
-        if (dir.distance < 5) {
-          bot.target = null; 
-        } else {
-          bot.position += (dir / dir.distance) * (bot.speed * dt);
-        }
-      }
-
-      // --- LOSS STATE (JUMPSCARE) ---
-      if ((bot.position - playerPos).distance < 15) {
+      if (botDist < 15) {
         if (!isGameOver) {
           isGameOver = true;
           _bgmPlayer.stop();
           _footstepsPlayer.stop();
-          _heartbeatPlayer.stop(); // Stop heartbeat instantly
+          _heartbeatPlayer.stop();
           _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
         }
       }
     }
 
     notifyListeners();
+  }
+
+  // --- FINITE STATE MACHINE LOGIC ---
+  void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
+    // 1. Global High-Priority Overrides
+    if (distToPlayer < 75.0) { // Direct proximity chase threshold
+      bot.state = BotState.chasing;
+    }
+
+    bool heardSound = false;
+    for (var wave in waves) {
+      if ((bot.position - wave.center).distance <= wave.radius) {
+        bot.target = wave.center;
+        heardSound = true;
+      }
+    }
+
+    // If bot hears a sound, abandon current logic unless already chasing
+    if (heardSound && bot.state != BotState.chasing) {
+      bot.state = BotState.investigating;
+    }
+
+    // 2. State Specific Behaviors
+    switch (bot.state) {
+      case BotState.idle:
+        // Stands still, waiting for input
+        break;
+
+      case BotState.investigating:
+        if (bot.target != null) {
+          _moveBot(bot, bot.target!, dt, 1.0); // Standard speed
+          if ((bot.position - bot.target!).distance < 5.0) {
+            // Reached sound source, start searching area
+            bot.state = BotState.searching;
+            bot.stateTimer = 4.0; // Search for 4 seconds
+            bot.target = _getRandomNearbyPosition(bot.position, 50.0);
+          }
+        } else {
+          bot.state = BotState.idle;
+        }
+        break;
+
+      case BotState.searching:
+        bot.stateTimer -= dt;
+        if (bot.target != null) {
+          _moveBot(bot, bot.target!, dt, 0.6); // Move slower while scanning
+          if ((bot.position - bot.target!).distance < 5.0) {
+            // Pick a new random waypoint
+            bot.target = _getRandomNearbyPosition(bot.position, 50.0);
+          }
+        }
+        if (bot.stateTimer <= 0) {
+          bot.state = BotState.cooldown;
+          bot.stateTimer = 2.0; // Rest for 2 seconds
+          bot.target = null;
+        }
+        break;
+
+      case BotState.chasing:
+        bot.target = playerPos;
+        _moveBot(bot, bot.target!, dt, 1.4); // Sprint faster than normal
+        if (distToPlayer > 120.0) { 
+          // Player managed to outrun the bot
+          bot.state = BotState.cooldown;
+          bot.stateTimer = 3.0;
+          bot.target = null;
+        }
+        break;
+
+      case BotState.cooldown:
+        bot.stateTimer -= dt;
+        if (bot.stateTimer <= 0) {
+          bot.state = BotState.idle;
+        }
+        break;
+    }
+  }
+
+  // AI Helper: Vector Movement
+  void _moveBot(Bot bot, Offset destination, double dt, double speedMultiplier) {
+    Offset dir = destination - bot.position;
+    if (dir.distance > 0) {
+      bot.position += (dir / dir.distance) * (bot.baseSpeed * speedMultiplier * dt);
+    }
+  }
+
+  // AI Helper: Random Waypoint Generation
+  Offset _getRandomNearbyPosition(Offset center, double radius) {
+    final random = Random();
+    double angle = random.nextDouble() * 2 * pi;
+    double r = random.nextDouble() * radius;
+    return center + Offset(r * cos(angle), r * sin(angle));
   }
 
   void emitWave() {
@@ -214,6 +296,8 @@ class GameModel extends ChangeNotifier {
     elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
+    
+    // Reset Bot FSM
     bots = [Bot(position: const Offset(200, 250))];
     
     _isFootstepsPlaying = false;
