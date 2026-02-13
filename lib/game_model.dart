@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'maze_generator.dart'; 
 
 class EchoWave {
   Offset center;
@@ -36,29 +37,30 @@ class Bot {
 }
 
 class GameModel extends ChangeNotifier {
-  Offset playerPos = const Offset(50, 50);
+  late Offset playerPos;
   final double playerRadius = 8.0;
   
   bool isGameOver = false;
   bool isGameWon = false;
-  
   bool isCaught = false; 
   double caughtTimer = 0.0;
   
   int elapsedMilliseconds = 0;
   int? bestTimeMilliseconds;
   
-  Offset exitPos = const Offset(350, 450); 
+  late Offset exitPos; 
   final double exitRadius = 20.0;
 
-  List<List<Offset>> walls = [
-    [const Offset(100, 100), const Offset(300, 100)],
-    [const Offset(300, 100), const Offset(300, 400)],
-    [const Offset(100, 400), const Offset(100, 100)]
-  ];
+  late List<List<Offset>> walls; // <--- Changed from hardcoded list
+  
+  // -- Maze Parameters --
+  final int gridWidth = 9;
+  final int gridHeight = 11;
+  final double cellSize = 40.0;
+  final Offset mazeOffset = const Offset(20, 40); // Pushes the maze slightly down/right
 
   List<EchoWave> waves = [];
-  List<Bot> bots = [Bot(position: const Offset(200, 250))];
+  late List<Bot> bots; // <--- Late init so we can place bots dynamically
 
   Offset velocity = Offset.zero; 
   Offset _actualVelocity = Offset.zero; 
@@ -86,6 +88,51 @@ class GameModel extends ChangeNotifier {
   GameModel() {
     _loadBestTime();
     _initAudio();
+    _generateLevel(); // <--- Call new level generation on boot
+  }
+
+  // --- NEW: Procedural Generation Integration ---
+  void _generateLevel() {
+    final generator = MazeGenerator(
+      gridWidth: gridWidth,
+      gridHeight: gridHeight,
+      cellSize: cellSize,
+      loopPercentage: 0.15, // 15% loops
+      startOffset: mazeOffset,
+    );
+
+    // Define spawn at top-left, exit at bottom-right
+    final startCell = const Point(0, 0);
+    final exitCell = Point(gridWidth - 1, gridHeight - 1);
+
+    // Generate Wall Line Segments
+    walls = generator.generate(startCell, exitCell);
+
+    // Place Player in the physical center of the Start Cell
+    playerPos = mazeOffset + Offset(
+      startCell.x * cellSize + (cellSize / 2), 
+      startCell.y * cellSize + (cellSize / 2)
+    );
+
+    // Place Exit Door in the physical center of the Exit Cell
+    exitPos = mazeOffset + Offset(
+      exitCell.x * cellSize + (cellSize / 2), 
+      exitCell.y * cellSize + (cellSize / 2)
+    );
+
+    // Place Bot randomly, but at least 4 cells away from the player
+    final rng = Random();
+    Point<int> botCell;
+    do {
+      botCell = Point(rng.nextInt(gridWidth), rng.nextInt(gridHeight));
+    } while (botCell.distanceTo(startCell) < 4);
+
+    bots = [
+      Bot(position: mazeOffset + Offset(
+        botCell.x * cellSize + (cellSize / 2), 
+        botCell.y * cellSize + (cellSize / 2)
+      ))
+    ];
   }
 
   void _initAudio() async {
@@ -424,23 +471,20 @@ class GameModel extends ChangeNotifier {
   }
 
   void resetGame() {
-    playerPos = const Offset(50, 50);
     isGameOver = false;
     isGameWon = false;
-    
     isCaught = false;
     caughtTimer = 0.0;
-    
     elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
     _actualVelocity = Offset.zero; 
     
-    bots = [Bot(position: const Offset(200, 250))];
+    _generateLevel(); // <--- Generate a brand new layout every time they restart!
     
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
-    _currentHeartbeatVolume = 0.0; // Reset fade envelope
+    _currentHeartbeatVolume = 0.0; 
     
     _breathingPlayer.stop(); 
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
