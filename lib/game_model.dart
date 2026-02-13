@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// ignore: unused_import
 import 'dart:math';
 
 class EchoWave {
@@ -24,7 +25,14 @@ class Bot {
 class GameModel extends ChangeNotifier {
   Offset playerPos = const Offset(50, 50);
   final double playerRadius = 8.0;
+  
+  // Phase 2: Game States
   bool isGameOver = false;
+  bool isGameWon = false;
+  
+  // Phase 2: The Exit Door
+  Offset exitPos = const Offset(350, 450); 
+  final double exitRadius = 20.0;
 
   List<List<Offset>> walls = [
     [const Offset(100, 100), const Offset(300, 100)],
@@ -34,19 +42,19 @@ class GameModel extends ChangeNotifier {
 
   List<EchoWave> waves = [];
   Offset velocity = Offset.zero;
-  
-  // <-- Fixed the instantiation to use the named parameter 'position:'
   List<Bot> bots = [Bot(position: const Offset(200, 250))];
   
   void update(double dt) {
-    if (isGameOver) return; 
+    if (isGameOver || isGameWon) return; // Stop the game if it's over
 
+    // 1. Update Waves
     for (int i = waves.length - 1; i >= 0; i--) {
       waves[i].radius += 150 * dt;
       waves[i].opacity -= 0.5 * dt;
       if (waves[i].opacity <= 0) waves.removeAt(i);
     }
 
+    // 2. Update Player Position
     double speed = 150 * dt;
     Offset moveX = Offset(velocity.dx * speed, 0);
     Offset moveY = Offset(0, velocity.dy * speed);
@@ -57,6 +65,12 @@ class GameModel extends ChangeNotifier {
     Offset newPosY = playerPos + moveY;
     if (!_checkCollision(newPosY)) playerPos = newPosY;
 
+    // Phase 2: Win Detection (Did player touch the exit?)
+    if ((playerPos - exitPos).distance < exitRadius) {
+      isGameWon = true;
+    }
+
+    // 3. Update Bots
     for (var bot in bots) {
       for (var wave in waves) {
         if ((bot.position - wave.center).distance <= wave.radius) {
@@ -73,6 +87,7 @@ class GameModel extends ChangeNotifier {
         }
       }
 
+      // Loss Detection
       if ((bot.position - playerPos).distance < 15) {
         isGameOver = true;
       }
@@ -82,7 +97,18 @@ class GameModel extends ChangeNotifier {
   }
 
   void emitWave() {
-    if (!isGameOver) waves.add(EchoWave(center: playerPos));
+    if (!isGameOver && !isGameWon) waves.add(EchoWave(center: playerPos));
+  }
+
+  // Phase 2: Reset Game Logic
+  void resetGame() {
+    playerPos = const Offset(50, 50);
+    isGameOver = false;
+    isGameWon = false;
+    waves.clear();
+    velocity = Offset.zero;
+    bots = [Bot(position: const Offset(200, 250))]; // Reset bot to middle
+    notifyListeners();
   }
 
   bool _checkCollision(Offset pos) {
@@ -98,7 +124,7 @@ class GameModel extends ChangeNotifier {
     double l2 = (v - w).distanceSquared;
     if (l2 == 0) return (p - v).distance;
     double t = ((p.dx - v.dx) * (w.dx - v.dx) + (p.dy - v.dy) * (w.dy - v.dy)) / l2;
-    t = max(0, min(1, t));
+    t = (t < 0) ? 0 : (t > 1 ? 1 : t);
     return (p - Offset(v.dx + t * (w.dx - v.dx), v.dy + t * (w.dy - v.dy))).distance;
   }
 }

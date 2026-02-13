@@ -11,6 +11,15 @@ class GamePainter extends CustomPainter {
     final bgPaint = Paint()..color = const Color(0xFF050505);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
+    // Phase 2: Draw Exit Door (Faint glowing green square)
+    final exitPaint = Paint()
+      ..color = Colors.greenAccent.withValues(alpha: 0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromCenter(center: model.exitPos, width: model.exitRadius * 2, height: model.exitRadius * 2),
+      exitPaint,
+    );
+
     for (var wave in model.waves) {
       final wallPaint = Paint()
         // <-- Cleanly using withValues(alpha: ...)

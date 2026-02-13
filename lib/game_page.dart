@@ -60,48 +60,87 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
           ),
 
-          // 2. The Joystick (Bottom Left)
-          Positioned(
-            bottom: 40,
-            left: 40,
-            child: Joystick(
-              mode: JoystickMode.all, // Allows free movement in any direction
-              listener: (details) {
-                // The listener callback provides the stick's offset, ranging from -1.0 to 1.0
-                _joystickVelocity = Offset(details.x, details.y);
-              },
+          // 2. Controls Layer (Only show if playing)
+          if (!_model.isGameOver && !_model.isGameWon) ...[
+            Positioned(
+              bottom: 40,
+              left: 40,
+              child: Joystick(
+                mode: JoystickMode.all,
+                listener: (details) {
+                  _joystickVelocity = Offset(details.x, details.y);
+                },
+              ),
             ),
-          ),
-
-          // 3. The "Clap" Button (Bottom Right)
-          Positioned(
-            bottom: 40,
-            right: 40,
-            child: GestureDetector(
-              onTap: () {
-                _model.emitWave();
-              },
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white54, width: 2),
-                  color: Colors.white.withValues(alpha: 0.1), 
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    )
-                  ]
-                ),
-                child: const Center(
-                  child: Text("CLAP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Positioned(
+              bottom: 40,
+              right: 40,
+              child: GestureDetector(
+                onTap: () {
+                  _model.emitWave();
+                },
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white54, width: 2),
+                    color: Colors.white.withValues(alpha: 0.1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      )
+                    ]
+                  ),
+                  child: const Center(
+                    child: Text("CLAP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
+
+          // 3. Phase 2: Game Over Overlay (Loss)
+          if (_model.isGameOver)
+            Container(
+              color: Colors.redAccent.withValues(alpha: 0.8),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("CAUGHT", style: TextStyle(fontSize: 50, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 5)),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
+                      onPressed: () => _model.resetGame(),
+                      child: const Text("TRY AGAIN"),
+                    )
+                  ],
+                ),
+              ),
+            ),
+
+          // 4. Phase 2: You Escaped Overlay (Win)
+          if (_model.isGameWon)
+            Container(
+              color: Colors.greenAccent.withValues(alpha: 0.8),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("ESCAPED", style: TextStyle(fontSize: 50, color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 5)),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
+                      onPressed: () => _model.resetGame(),
+                      child: const Text("PLAY AGAIN"),
+                    )
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
