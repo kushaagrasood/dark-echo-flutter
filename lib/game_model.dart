@@ -24,23 +24,30 @@ class GameModel extends ChangeNotifier  {
   Offset velocity = Offset.zero;
   
   void update(double dt) {
-    //1. Update Waves
+    // 1. Update Waves
     for (int i = waves.length - 1; i >= 0; i--) {
-      waves[i].radius += 150 * dt; //Expansion speed
-      waves[i].opacity -= 0.5 * dt; //Fade speed
+      waves[i].radius += 150 * dt; // Expansion speed
+      waves[i].opacity -= 0.5 * dt; // Fade speed
       if(waves[i].opacity <= 0) {
         waves.removeAt(i);
       }
     }
 
-    //2. Update Player Position
-    Offset newPos = playerPos + (velocity * 150 * dt);
+    // 2. Update Player Position with Sliding Collision
+    double speed = 150 * dt;
+    Offset moveX = Offset(velocity.dx * speed, 0);
+    Offset moveY = Offset(0, velocity.dy * speed);
 
-    // 3. Check Collision
-    if(_checkCollision(newPos)) {
-      playerPos = Offset(50,50); //Reset to start
-    } else {
-      playerPos = newPos;
+    // Try moving along the X axis first
+    Offset newPosX = playerPos + moveX;
+    if (!_checkCollision(newPosX)) {
+      playerPos = newPosX;
+    }
+
+    // Try moving along the Y axis second
+    Offset newPosY = playerPos + moveY;
+    if (!_checkCollision(newPosY)) {
+      playerPos = newPosY;
     }
 
     notifyListeners();
