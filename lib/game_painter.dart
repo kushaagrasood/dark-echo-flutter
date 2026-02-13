@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math'; // Added for screen shake math
 import 'game_model.dart';
 
 class GamePainter extends CustomPainter {
@@ -8,27 +9,55 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 1. Calculate Fear Factor based on nearest bot
+    double minBotDist = double.infinity;
+    bool isChasing = false;
+
+    for (var bot in model.bots) {
+      double dist = (bot.position - model.playerPos).distance;
+      if (dist < minBotDist) minBotDist = dist;
+      if (bot.state == BotState.chasing) isChasing = true;
+    }
+
+    // Fear scales from 0.0 (safe) to 1.0 (touching)
+    double fearFactor = 0.0;
+    if (minBotDist < 200.0) {
+      fearFactor = 1.0 - (minBotDist / 200.0).clamp(0.0, 1.0);
+    }
+
+    // 2. Draw Base Background (Always pitch black, drawn before shake to prevent edge clipping)
     final bgPaint = Paint()..color = const Color(0xFF050505);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // Phase 2: Draw Exit Door (Faint glowing green square)
-    final exitPaint = Paint()
-      ..color = Colors.greenAccent.withValues(alpha: 0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0)
+    // --- START DISTORTION LAYER ---
+    canvas.save(); // Save canvas state before applying transformations
+
+    // Apply Screen Shake if being chased
+    if (isChasing && fearFactor > 0) {
+      final random = Random();
+      double shakeIntensity = fearFactor * 4.0; // Max 4 pixels of displacement
+      double dx = (random.nextDouble() - 0.5) * 2 * shakeIntensity;
+      double dy = (random.nextDouble() - 0.5) * 2 * shakeIntensity;
+      canvas.translate(dx, dy);
+    }
+
+    // 3. Draw Exit Door
+    final exitPaint = Paint()\r
+      ..color = Colors.greenAccent.withValues(alpha: 0.3)\r
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0)\r
       ..style = PaintingStyle.fill;
     canvas.drawRect(
       Rect.fromCenter(center: model.exitPos, width: model.exitRadius * 2, height: model.exitRadius * 2),
       exitPaint,
     );
-    
 
+    // 4. Draw Walls (Echoes)
     for (var wave in model.waves) {
       final wallPaint = Paint()
-        // <-- Cleanly using withValues(alpha: ...)
         ..color = Colors.white.withValues(alpha: wave.opacity.clamp(0.0, 1.0))
         ..strokeWidth = 3.0
-        ..strokeCap = StrokeCap.round // Rounds the edges of the walls
-        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3.0) // Subtle radar glow
+        ..strokeCap = StrokeCap.round 
+        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3.0) 
         ..style = PaintingStyle.stroke;
 
       for (var wall in model.walls) {
@@ -43,14 +72,38 @@ class GamePainter extends CustomPainter {
       }
     }
 
+    // 5. Draw Enemy Bots
     for (var bot in model.bots) {
       final botPaint = Paint()
         ..color = Colors.redAccent.withValues(alpha: bot.opacity.clamp(0.0, 1.0));
       canvas.drawCircle(bot.position, 10.0, botPaint);
     }
 
+    // 6. Draw Player
     final playerPaint = Paint()..color = Colors.blueAccent;
     canvas.drawCircle(model.playerPos, 8.0, playerPaint);
+
+    // 7. Draw Fear Vignette Overlay
+    if (fearFactor > 0) {
+      final vignettePaint = Paint()
+        ..shader = RadialGradient(
+          center: Alignment.center,
+          // Radius shrinks as bot gets closer, closing in on the player
+          radius: 1.5 - (fearFactor * 0.7), 
+          colors: [
+            Colors.transparent,
+            Colors.redAccent.withValues(alpha: fearFactor * 0.15), // Faint blood-red tint
+            Colors.black.withValues(alpha: fearFactor * 0.95),     // Crushing darkness at edges
+          ],
+          stops: const [0.3, 0.7, 1.0],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+        ..blendMode = BlendMode.srcOver; // Overlays smoothly on top of the glowing walls
+
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), vignettePaint);
+    }
+
+    // --- END DISTORTION LAYER ---
+    canvas.restore(); // Revert canvas translation so UI/HUD doesn't shake
   }
 
   bool _isWaveHittingSegment(EchoWave wave, Offset p1, Offset p2) {
