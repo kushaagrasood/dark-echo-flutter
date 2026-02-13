@@ -20,6 +20,11 @@ class Bot {
   
   BotState state = BotState.idle;
   double stateTimer = 0.0;
+  
+  // --- NEW: Vision & Memory Mechanics ---
+  double facingAngle = 0.0; 
+  Offset? lastSeenPosition;
+  Offset? currentWaypoint; // General purpose movement target for searching/investigating
 
   Offset? lastHeardPosition;
   double lastHeardStrength = 0.0;
@@ -38,7 +43,6 @@ class GameModel extends ChangeNotifier {
   bool isGameOver = false;
   bool isGameWon = false;
   
-  // --- NEW: Cinematic Caught State ---
   bool isCaught = false; 
   double caughtTimer = 0.0;
   
@@ -67,7 +71,7 @@ class GameModel extends ChangeNotifier {
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _footstepsPlayer = AudioPlayer();
   final AudioPlayer _heartbeatPlayer = AudioPlayer(); 
-  final AudioPlayer _breathingPlayer = AudioPlayer(); // NEW: Breathing audio player
+  final AudioPlayer _breathingPlayer = AudioPlayer(); 
   final AudioPlayer _jumpscarePlayer = AudioPlayer();
   
   bool _isFootstepsPlaying = false;
@@ -110,15 +114,14 @@ class GameModel extends ChangeNotifier {
   void update(double dt) {
     if (isGameOver || isGameWon) return; 
 
-    // --- NEW: Handle the 1-second freeze before Game Over ---
     if (isCaught) {
       caughtTimer += dt;
       if (caughtTimer >= 1.0) {
-        isGameOver = true; // Triggers the red UI screen
+        isGameOver = true; 
         _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
         notifyListeners();
       }
-      return; // Freeze ALL physics and AI updates while caught
+      return; 
     }
 
     elapsedMilliseconds += (dt * 1000).toInt();
@@ -216,16 +219,15 @@ class GameModel extends ChangeNotifier {
     for (var bot in bots) {
       _updateBotFSM(bot, dt, botDist);
 
-      // --- NEW: Loss Condition Trigger ---
       if (botDist < 15) {
         if (!isCaught) {
-          isCaught = true; // Enter the 1-second freeze state
-          _actualVelocity = Offset.zero; // Kill player momentum
+          isCaught = true; 
+          _actualVelocity = Offset.zero; 
           
           _bgmPlayer.stop();
           _footstepsPlayer.stop();
           _heartbeatPlayer.stop();
-          _breathingPlayer.play(AssetSource('audio/breathing.ogg')); // Play the build-up
+          _breathingPlayer.play(AssetSource('audio/breathing.ogg')); 
         }
       }
     }
@@ -233,13 +235,33 @@ class GameModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- UPGRADED FINITE STATE MACHINE LOGIC ---
   void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
-    bool canSeePlayer = distToPlayer <= 200.0 && _hasLineOfSight(bot.position, playerPos);
-
-    if (canSeePlayer) { 
-      bot.state = BotState.chasing;
+    
+    // 1. Calculate Vision Cone & Line of Sight
+    bool canSeePlayer = false;
+    if (distToPlayer <= 220.0) { // Max vision distance
+      Offset toPlayer = playerPos - bot.position;
+      double angleToPlayer = atan2(toPlayer.dy, toPlayer.dx);
+      
+      double angleDiff = (angleToPlayer - bot.facingAngle).abs();
+      if (angleDiff > pi) angleDiff = 2 * pi - angleDiff;
+      
+      // 120-degree Field of View (+/- 60 degrees from center)
+      if (angleDiff <= (pi / 3)) { 
+        if (_hasLineOfSight(bot.position, playerPos)) {
+          canSeePlayer = true;
+        }
+      }
     }
 
+    // 2. High-Priority Vision Override
+    if (canSeePlayer) {
+      bot.state = BotState.chasing;
+      bot.lastSeenPosition = playerPos; // Constantly update memory while visible
+    }
+
+    // 3. Audio Perception Logic
     bool heardNewSound = false;
     double strongestCurrentWave = 0.0;
     Offset? strongestWavePos;
@@ -267,12 +289,15 @@ class GameModel extends ChangeNotifier {
       bot.lastHeardStrength -= 0.1 * dt; 
     }
 
-    if (heardNewSound && bot.state != BotState.chasing) {
+    // Sound distracts bot ONLY if not already in a high-alert chase/search
+    if (heardNewSound && bot.state != BotState.chasing && bot.state != BotState.searching) {
       bot.state = BotState.investigating;
     }
 
+    // 4. State Behaviors
     switch (bot.state) {
       case BotState.idle:
+        // Stands still, looking in the last direction it faced
         break;
 
       case BotState.investigating:
@@ -280,9 +305,11 @@ class GameModel extends ChangeNotifier {
           _moveBot(bot, bot.lastHeardPosition!, dt, 1.0); 
           
           if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
+            // Reached audio source, transition into search pattern
             bot.state = BotState.searching;
             bot.stateTimer = 4.0; 
-            bot.lastHeardPosition = _getRandomNearbyPosition(bot.position, 60.0);
+            bot.lastSeenPosition = bot.lastHeardPosition; // Use search logic around sound
+            bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
             bot.lastHeardStrength = 0.0; 
           }
         } else {
@@ -290,32 +317,42 @@ class GameModel extends ChangeNotifier {
         }
         break;
 
+      case BotState.chasing:
+        if (canSeePlayer) {
+          _moveBot(bot, playerPos, dt, 1.4); // Sprint
+        } else {
+          // Line of Sight Broken: Sprint to last known location
+          if (bot.lastSeenPosition != null) {
+            _moveBot(bot, bot.lastSeenPosition!, dt, 1.4); 
+            
+            if ((bot.position - bot.lastSeenPosition!).distance < 5.0) {
+              // Reached last known location, player is gone -> Search area
+              bot.state = BotState.searching;
+              bot.stateTimer = 5.0; // Randomly search for 5 seconds
+              bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 80.0);
+            }
+          }
+        }
+        break;
+
       case BotState.searching:
         bot.stateTimer -= dt;
-        if (bot.lastHeardPosition != null) {
-          _moveBot(bot, bot.lastHeardPosition!, dt, 0.6); 
+        if (bot.currentWaypoint != null) {
+          _moveBot(bot, bot.currentWaypoint!, dt, 0.6); // Move slower, scanning
           
-          if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
-            bot.lastHeardPosition = _getRandomNearbyPosition(bot.position, 60.0);
+          if ((bot.position - bot.currentWaypoint!).distance < 5.0) {
+            // Reached waypoint, pick a new one near the last known event
+            if (bot.lastSeenPosition != null) {
+               bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 80.0);
+            }
           }
         }
         
         if (bot.stateTimer <= 0) {
           bot.state = BotState.cooldown;
-          bot.stateTimer = 2.0; 
-          bot.lastHeardPosition = null;
-        }
-        break;
-
-      case BotState.chasing:
-        bot.lastHeardPosition = playerPos;
-        _moveBot(bot, playerPos, dt, 1.4); 
-        
-        if (!canSeePlayer) { 
-          bot.state = BotState.cooldown;
-          bot.stateTimer = 3.0;
-          bot.lastHeardPosition = null;
-          bot.lastHeardStrength = 0.0;
+          bot.stateTimer = 3.0; // Suspicion dropping
+          bot.lastSeenPosition = null;
+          bot.currentWaypoint = null;
         }
         break;
 
@@ -331,6 +368,8 @@ class GameModel extends ChangeNotifier {
   void _moveBot(Bot bot, Offset destination, double dt, double speedMultiplier) {
     Offset dir = destination - bot.position;
     if (dir.distance > 0) {
+      // Update facing angle for the vision cone calculation
+      bot.facingAngle = atan2(dir.dy, dir.dx); 
       bot.position += (dir / dir.distance) * (bot.baseSpeed * speedMultiplier * dt);
     }
   }
@@ -354,7 +393,6 @@ class GameModel extends ChangeNotifier {
     isGameOver = false;
     isGameWon = false;
     
-    // --- NEW: Reset Caught State ---
     isCaught = false;
     caughtTimer = 0.0;
     
@@ -368,11 +406,13 @@ class GameModel extends ChangeNotifier {
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
     
-    _breathingPlayer.stop(); // Stop breathing in case user resets early
+    _breathingPlayer.stop(); 
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
     
     notifyListeners();
   }
+
+  // --- MATH & COLLISION HELPERS ---
 
   bool _checkCollision(Offset pos) {
     for (var wall in walls) {
