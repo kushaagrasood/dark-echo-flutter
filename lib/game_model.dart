@@ -11,7 +11,6 @@ class EchoWave {
   EchoWave({required this.center, this.radius = 0.0, this.opacity = 1.0});
 }
 
-// FSM States
 enum BotState { idle, investigating, searching, chasing, cooldown }
 
 class Bot {
@@ -19,11 +18,9 @@ class Bot {
   double opacity;
   final double baseSpeed = 90.0; 
   
-  // FSM Variables
   BotState state = BotState.idle;
   double stateTimer = 0.0;
 
-  // Advanced Hearing Mechanics
   Offset? lastHeardPosition;
   double lastHeardStrength = 0.0;
   final double hearingThreshold = 0.15; 
@@ -56,14 +53,12 @@ class GameModel extends ChangeNotifier {
   List<EchoWave> waves = [];
   List<Bot> bots = [Bot(position: const Offset(200, 250))];
 
-  // --- PHYSICS ENGINE VARIABLES ---
-  Offset velocity = Offset.zero; // This receives Joystick Input (-1.0 to 1.0) from GamePage
-  Offset _actualVelocity = Offset.zero; // Internal physics velocity
+  Offset velocity = Offset.zero; 
+  Offset _actualVelocity = Offset.zero; 
   final double maxSpeed = 150.0;
   final double acceleration = 800.0;
   final double friction = 600.0;
 
-  // --- AUDIO ENGINE ---
   final AudioPlayer _bgmPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _footstepsPlayer = AudioPlayer();
@@ -111,24 +106,18 @@ class GameModel extends ChangeNotifier {
 
     elapsedMilliseconds += (dt * 1000).toInt();
 
-    // 1. Update Waves
     for (int i = waves.length - 1; i >= 0; i--) {
       waves[i].radius += 150 * dt;
       waves[i].opacity -= 0.5 * dt;
       if (waves[i].opacity <= 0) waves.removeAt(i);
     }
 
-    // 2. --- PLAYER PHYSICS & MOMENTUM ---
     if (velocity != Offset.zero) {
-      // Apply Acceleration based on joystick input direction
       _actualVelocity += velocity * acceleration * dt;
-      
-      // Clamp to max speed
       if (_actualVelocity.distance > maxSpeed) {
         _actualVelocity = (_actualVelocity / _actualVelocity.distance) * maxSpeed;
       }
     } else {
-      // Apply Friction when joystick is released
       double currentSpeed = _actualVelocity.distance;
       if (currentSpeed > 0) {
         double newSpeed = currentSpeed - friction * dt;
@@ -140,13 +129,12 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // 3. --- DISCRETE AXIS RESOLUTION (Sliding & Jitter Prevention) ---
     Offset moveX = Offset(_actualVelocity.dx * dt, 0);
     Offset newPosX = playerPos + moveX;
     if (!_checkCollision(newPosX)) {
       playerPos = newPosX;
     } else {
-      _actualVelocity = Offset(0, _actualVelocity.dy); // Kill X-momentum on impact
+      _actualVelocity = Offset(0, _actualVelocity.dy); 
     }
 
     Offset moveY = Offset(0, _actualVelocity.dy * dt);
@@ -154,13 +142,11 @@ class GameModel extends ChangeNotifier {
     if (!_checkCollision(newPosY)) {
       playerPos = newPosY;
     } else {
-      _actualVelocity = Offset(_actualVelocity.dx, 0); // Kill Y-momentum on impact
+      _actualVelocity = Offset(_actualVelocity.dx, 0); 
     }
 
-    // 4. --- PROXIMITY AUDIO LOGIC ---
     double botDist = (bots[0].position - playerPos).distance;
     
-    // Footsteps
     double hearingThreshold = 300.0; 
     if (botDist < hearingThreshold) {
       if (!_isFootstepsPlaying) {
@@ -178,7 +164,6 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // Heartbeat
     double heartbeatThreshold = 150.0;
     if (botDist < heartbeatThreshold) {
       if (!_isHeartbeatPlaying) {
@@ -196,7 +181,6 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // 5. --- WIN STATE ---
     if ((playerPos - exitPos).distance < exitRadius) {
       if (!isGameWon) {
         isGameWon = true;
@@ -212,7 +196,6 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // 6. --- BOT AI & LOSS STATE ---
     for (var bot in bots) {
       _updateBotFSM(bot, dt, botDist);
 
@@ -230,9 +213,11 @@ class GameModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- FINITE STATE MACHINE LOGIC ---
   void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
-    if (distToPlayer < 75.0) { 
+    // Determine if bot has a direct, unbroken line of sight to the player
+    bool canSeePlayer = distToPlayer <= 200.0 && _hasLineOfSight(bot.position, playerPos);
+
+    if (canSeePlayer) { 
       bot.state = BotState.chasing;
     }
 
@@ -307,7 +292,8 @@ class GameModel extends ChangeNotifier {
         bot.lastHeardPosition = playerPos;
         _moveBot(bot, playerPos, dt, 1.4); 
         
-        if (distToPlayer > 120.0) { 
+        // If the player breaks line of sight or gets out of range
+        if (!canSeePlayer) { 
           bot.state = BotState.cooldown;
           bot.stateTimer = 3.0;
           bot.lastHeardPosition = null;
@@ -352,7 +338,7 @@ class GameModel extends ChangeNotifier {
     elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
-    _actualVelocity = Offset.zero; // Reset physics
+    _actualVelocity = Offset.zero; 
     
     bots = [Bot(position: const Offset(200, 250))];
     
@@ -362,6 +348,8 @@ class GameModel extends ChangeNotifier {
     
     notifyListeners();
   }
+
+  // --- MATH & COLLISION HELPERS ---
 
   bool _checkCollision(Offset pos) {
     for (var wall in walls) {
@@ -378,5 +366,45 @@ class GameModel extends ChangeNotifier {
     double t = ((p.dx - v.dx) * (w.dx - v.dx) + (p.dy - v.dy) * (w.dy - v.dy)) / l2;
     t = (t < 0) ? 0 : (t > 1 ? 1 : t);
     return (p - Offset(v.dx + t * (w.dx - v.dx), v.dy + t * (w.dy - v.dy))).distance;
+  }
+
+  // Casts a ray and checks against all walls
+  bool _hasLineOfSight(Offset start, Offset end) {
+    for (var wall in walls) {
+      for (int i = 0; i < wall.length - 1; i++) {
+        if (_doIntersect(start, end, wall[i], wall[i + 1])) {
+          return false; // Vision is blocked by this wall
+        }
+      }
+    }
+    return true; // Vision is clear
+  }
+
+  // Evaluates intersection between line segment p1q1 and p2q2
+  bool _doIntersect(Offset p1, Offset q1, Offset p2, Offset q2) {
+    int o1 = _orientation(p1, q1, p2);
+    int o2 = _orientation(p1, q1, q2);
+    int o3 = _orientation(p2, q2, p1);
+    int o4 = _orientation(p2, q2, q1);
+
+    if (o1 != o2 && o3 != o4) return true;
+
+    if (o1 == 0 && _onSegment(p1, p2, q1)) return true;
+    if (o2 == 0 && _onSegment(p1, q2, q1)) return true;
+    if (o3 == 0 && _onSegment(p2, p1, q2)) return true;
+    if (o4 == 0 && _onSegment(p2, q1, q2)) return true;
+
+    return false;
+  }
+
+  int _orientation(Offset p, Offset q, Offset r) {
+    double val = (q.dy - p.dy) * (r.dx - q.dx) - (q.dx - p.dx) * (r.dy - q.dy);
+    if (val == 0) return 0; // Collinear
+    return (val > 0) ? 1 : 2; // Clockwise or Counterclockwise
+  }
+
+  bool _onSegment(Offset p, Offset q, Offset r) {
+    return q.dx <= max(p.dx, r.dx) && q.dx >= min(p.dx, r.dx) &&
+           q.dy <= max(p.dy, r.dy) && q.dy >= min(p.dy, r.dy);
   }
 }
