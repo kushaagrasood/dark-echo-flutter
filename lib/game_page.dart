@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_joystick/flutter_joystick.dart';
+import 'package:google_fonts/google_fonts.dart'; // Added Google Fonts
 import 'game_model.dart';
 import 'game_painter.dart';
 
@@ -50,12 +51,14 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       backgroundColor: const Color(0xFF050505),
       body: Stack(
         children: [
+          // 1. The Game Layer
           Positioned.fill(
             child: CustomPaint(
               painter: GamePainter(_model),
             ),
           ),
 
+          // 2. Live Timer HUD (Now using VT323)
           Positioned(
             top: 60,
             left: 0,
@@ -63,17 +66,19 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             child: Center(
               child: Text(
                 "${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s",
-                style: const TextStyle(
-                  color: Colors.white54, 
-                  fontSize: 24, 
-                  fontWeight: FontWeight.bold, 
-                  fontFamily: 'Courier', 
-                  letterSpacing: 2
+                style: GoogleFonts.vt323(
+                  textStyle: const TextStyle(
+                    color: Colors.white54, 
+                    fontSize: 32, 
+                    fontWeight: FontWeight.bold, 
+                    letterSpacing: 4
+                  )
                 ),
               ),
             ),
           ),
 
+          // 3. Controls Layer
           if (!_model.isGameOver && !_model.isGameWon) ...[
             Positioned(
               bottom: 40,
@@ -107,12 +112,13 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                       )
                     ]
                   ),
-                  child: const Center(
-                    child: Text("[ PING ]", style: TextStyle(
-                      color: Colors.white, 
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Courier',
-                      fontSize: 16,
+                  child: Center(
+                    child: Text("[PING]", style: GoogleFonts.vt323( // VT323 Font applied
+                      textStyle: const TextStyle(
+                        color: Colors.white, 
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                      )
                     )),
                   ),
                 ),
@@ -120,50 +126,101 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
           ],
 
+          // 4. HORROR Game Over Overlay (Loss)
           if (_model.isGameOver)
             Container(
-              color: Colors.redAccent.withValues(alpha: 0.8),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                gradient: RadialGradient(
+                  colors: [Colors.red.withValues(alpha: 0.4), Colors.black],
+                  radius: 1.2,
+                  center: Alignment.center,
+                ),
+              ),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("CAUGHT", style: TextStyle(fontSize: 50, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 5)),
-                    const SizedBox(height: 20),
+                    Text("SIGNAL LOST", 
+                      style: GoogleFonts.vt323(
+                        textStyle: const TextStyle(
+                          fontSize: 72, 
+                          color: Colors.redAccent, 
+                          fontWeight: FontWeight.bold, 
+                          letterSpacing: 10,
+                          shadows: [
+                            Shadow(color: Colors.red, blurRadius: 20, offset: Offset(0, 0)),
+                            Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-2, 2)), // Glitch effect
+                          ]
+                        )
+                      )
+                    ),
+                    const SizedBox(height: 10),
+                    Text("> fatal error: subject terminated_", 
+                      style: GoogleFonts.vt323(
+                        textStyle: const TextStyle(fontSize: 24, color: Colors.white54)
+                      )
+                    ),
+                    const SizedBox(height: 50),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent, 
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent, width: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)), // Sharp edges for terminal look
+                      ),
                       onPressed: () => _model.resetGame(),
-                      child: const Text("TRY AGAIN"),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        child: Text("[ REBOOT SYSTEM ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 28))),
+                      ),
                     )
                   ],
                 ),
               ),
             ),
 
+          // 5. Cinematic You Escaped Overlay (Win)
           if (_model.isGameWon)
             Container(
-              color: Colors.greenAccent.withValues(alpha: 0.85),
+              color: Colors.black.withValues(alpha: 0.9),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("ESCAPED", style: TextStyle(fontSize: 50, color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 5)),
-                    const SizedBox(height: 10),
+                    Text("CONNECTION SECURED", 
+                      style: GoogleFonts.vt323(
+                        textStyle: const TextStyle(
+                          fontSize: 50, 
+                          color: Colors.greenAccent, 
+                          fontWeight: FontWeight.bold, 
+                          letterSpacing: 5,
+                          shadows: [Shadow(color: Colors.green, blurRadius: 15)]
+                        )
+                      )
+                    ),
+                    const SizedBox(height: 20),
                     Text(
-                      "Time: ${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s", 
-                      style: const TextStyle(fontSize: 24, color: Colors.black87, fontWeight: FontWeight.w600)
+                      "> time_elapsed: ${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s", 
+                      style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 28, color: Colors.white70))
                     ),
                     if (_model.bestTimeMilliseconds != null)
                       Text(
-                        "Best: ${(_model.bestTimeMilliseconds! / 1000).toStringAsFixed(2)}s", 
-                        style: const TextStyle(fontSize: 20, color: Colors.black54)
+                        "> personal_best: ${(_model.bestTimeMilliseconds! / 1000).toStringAsFixed(2)}s", 
+                        style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24, color: Colors.white54))
                       ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 40),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent, 
+                        foregroundColor: Colors.greenAccent,
+                        side: const BorderSide(color: Colors.greenAccent, width: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                      ),
                       onPressed: () => _model.resetGame(),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        child: Text("PLAY AGAIN", style: TextStyle(fontSize: 18)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        child: Text("[ INITIATE NEXT SEQUENCE ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
                       ),
                     )
                   ],
