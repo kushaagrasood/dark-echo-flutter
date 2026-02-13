@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'main_menu.dart'; // Import the new menu
 
 void main() {
-  runApp(const EchoLabyrinthApp());
+  runApp(const DarkEchoApp());
 }
 
-class EchoLabyrinthApp extends StatelessWidget {
-  const EchoLabyrinthApp({super.key});
+class DarkEchoApp extends StatelessWidget {
+  const DarkEchoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
