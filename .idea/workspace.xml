@@ -6,10 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="d1c839df-fc1b-4516-9a5f-77329a08a4c5" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dark_echo.iml" beforeDir="false" afterPath="$PROJECT_DIR$/dark_echo.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/game_model.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/game_model.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/game_painter.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/game_painter.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/widget_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/widget_test.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,6 +53,7 @@
     "Flutter.main.dart.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.cidr.known.project.marker": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.readMode.enableVisualFormatting": "true",

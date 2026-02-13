@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-// ignore: unused_import
-import 'dart:math';
+//import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EchoWave {
@@ -20,7 +19,7 @@ class Bot {
   Bot({
     required this.position,
     this.opacity = 1.0,
-  }); // <-- The extra '}' that was breaking your code is gone
+  }); 
 }
 
 class GameModel extends ChangeNotifier {
