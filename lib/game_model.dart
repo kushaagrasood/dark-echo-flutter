@@ -2,8 +2,77 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'maze_generator.dart'; 
+import 'maze_generator.dart'; // Ensure this file is in your lib folder
 
+// --- DIFFICULTY CONFIGURATION ---
+enum Difficulty { easy, medium, hard }
+
+class DifficultyConfig {
+  final double botSpeedMultiplier;
+  final double hearingRadius; 
+  final double loopPercentage; 
+  final int maxEchoCharges; 
+  final double searchDuration; 
+  final double panicRadius; 
+  final double mazeCellSize; 
+  final int gridWidth; 
+  final int gridHeight;
+
+  const DifficultyConfig({
+    required this.botSpeedMultiplier,
+    required this.hearingRadius,
+    required this.loopPercentage,
+    required this.maxEchoCharges,
+    required this.searchDuration,
+    required this.panicRadius,
+    required this.mazeCellSize,
+    required this.gridWidth,
+    required this.gridHeight,
+  });
+
+  factory DifficultyConfig.get(Difficulty level) {
+    switch (level) {
+      case Difficulty.easy:
+        return const DifficultyConfig(
+          botSpeedMultiplier: 0.8,
+          hearingRadius: 300.0,
+          loopPercentage: 0.25, 
+          maxEchoCharges: 5,
+          searchDuration: 6.0, 
+          panicRadius: 100.0, 
+          mazeCellSize: 50.0, 
+          gridWidth: 7,
+          gridHeight: 9,
+        );
+      case Difficulty.medium:
+        return const DifficultyConfig(
+          botSpeedMultiplier: 1.0,
+          hearingRadius: 400.0,
+          loopPercentage: 0.15,
+          maxEchoCharges: 3,
+          searchDuration: 4.0,
+          panicRadius: 150.0,
+          mazeCellSize: 40.0, 
+          gridWidth: 9,
+          gridHeight: 11,
+        );
+      case Difficulty.hard:
+        return const DifficultyConfig(
+          botSpeedMultiplier: 1.15,
+          hearingRadius: 550.0,
+          loopPercentage: 0.05, 
+          maxEchoCharges: 2,
+          searchDuration: 2.5, 
+          panicRadius: 200.0, 
+          mazeCellSize: 30.0, 
+          gridWidth: 12,
+          gridHeight: 15,
+        );
+    }
+  }
+}
+
+// --- GAME CLASSES ---
 class EchoWave {
   Offset center;
   double radius;
@@ -37,11 +106,15 @@ class Bot {
 }
 
 class GameModel extends ChangeNotifier {
+  late DifficultyConfig config;
+  int currentEchoCharges = 0;
+
   late Offset playerPos;
   final double playerRadius = 8.0;
   
   bool isGameOver = false;
   bool isGameWon = false;
+  
   bool isCaught = false; 
   double caughtTimer = 0.0;
   
@@ -51,16 +124,11 @@ class GameModel extends ChangeNotifier {
   late Offset exitPos; 
   final double exitRadius = 20.0;
 
-  late List<List<Offset>> walls; // <--- Changed from hardcoded list
-  
-  // -- Maze Parameters --
-  final int gridWidth = 9;
-  final int gridHeight = 11;
-  final double cellSize = 40.0;
-  final Offset mazeOffset = const Offset(20, 40); // Pushes the maze slightly down/right
+  late List<List<Offset>> walls; 
+  final Offset mazeOffset = const Offset(20, 40); 
 
   List<EchoWave> waves = [];
-  late List<Bot> bots; // <--- Late init so we can place bots dynamically
+  late List<Bot> bots; 
 
   Offset velocity = Offset.zero; 
   Offset _actualVelocity = Offset.zero; 
@@ -77,60 +145,54 @@ class GameModel extends ChangeNotifier {
   
   bool _isFootstepsPlaying = false;
   bool _isHeartbeatPlaying = false;
-  
-  // NEW: Audio smooth transition state
   double _currentHeartbeatVolume = 0.0;
 
-  // NEW: Visual Heartbeat Pulse
   double visualPulseIntensity = 0.0;
   double _pulseTimer = 0.0;
 
-  GameModel() {
+  GameModel({Difficulty difficulty = Difficulty.medium}) {
+    config = DifficultyConfig.get(difficulty);
+    currentEchoCharges = config.maxEchoCharges;
+
     _loadBestTime();
     _initAudio();
-    _generateLevel(); // <--- Call new level generation on boot
+    _generateLevel();
   }
 
-  // --- NEW: Procedural Generation Integration ---
   void _generateLevel() {
     final generator = MazeGenerator(
-      gridWidth: gridWidth,
-      gridHeight: gridHeight,
-      cellSize: cellSize,
-      loopPercentage: 0.15, // 15% loops
+      gridWidth: config.gridWidth,
+      gridHeight: config.gridHeight,
+      cellSize: config.mazeCellSize,
+      loopPercentage: config.loopPercentage,
       startOffset: mazeOffset,
     );
 
-    // Define spawn at top-left, exit at bottom-right
     final startCell = const Point(0, 0);
-    final exitCell = Point(gridWidth - 1, gridHeight - 1);
+    final exitCell = Point(config.gridWidth - 1, config.gridHeight - 1);
 
-    // Generate Wall Line Segments
     walls = generator.generate(startCell, exitCell);
 
-    // Place Player in the physical center of the Start Cell
     playerPos = mazeOffset + Offset(
-      startCell.x * cellSize + (cellSize / 2), 
-      startCell.y * cellSize + (cellSize / 2)
+      startCell.x * config.mazeCellSize + (config.mazeCellSize / 2), 
+      startCell.y * config.mazeCellSize + (config.mazeCellSize / 2)
     );
 
-    // Place Exit Door in the physical center of the Exit Cell
     exitPos = mazeOffset + Offset(
-      exitCell.x * cellSize + (cellSize / 2), 
-      exitCell.y * cellSize + (cellSize / 2)
+      exitCell.x * config.mazeCellSize + (config.mazeCellSize / 2), 
+      exitCell.y * config.mazeCellSize + (config.mazeCellSize / 2)
     );
 
-    // Place Bot randomly, but at least 4 cells away from the player
     final rng = Random();
     Point<int> botCell;
     do {
-      botCell = Point(rng.nextInt(gridWidth), rng.nextInt(gridHeight));
+      botCell = Point(rng.nextInt(config.gridWidth), rng.nextInt(config.gridHeight));
     } while (botCell.distanceTo(startCell) < 4);
 
     bots = [
       Bot(position: mazeOffset + Offset(
-        botCell.x * cellSize + (cellSize / 2), 
-        botCell.y * cellSize + (cellSize / 2)
+        botCell.x * config.mazeCellSize + (config.mazeCellSize / 2), 
+        botCell.y * config.mazeCellSize + (config.mazeCellSize / 2)
       ))
     ];
   }
@@ -179,12 +241,14 @@ class GameModel extends ChangeNotifier {
 
     elapsedMilliseconds += (dt * 1000).toInt();
 
+    // 1. Update Waves
     for (int i = waves.length - 1; i >= 0; i--) {
       waves[i].radius += 150 * dt;
       waves[i].opacity -= 0.5 * dt;
       if (waves[i].opacity <= 0) waves.removeAt(i);
     }
 
+    // 2. Physics & Momentum
     if (velocity != Offset.zero) {
       _actualVelocity += velocity * acceleration * dt;
       if (_actualVelocity.distance > maxSpeed) {
@@ -218,9 +282,10 @@ class GameModel extends ChangeNotifier {
       _actualVelocity = Offset(_actualVelocity.dx, 0); 
     }
 
+    // 3. Audio & AI
     double botDist = (bots[0].position - playerPos).distance;
     
-    // --- 1. Footsteps Audio (Strictly Proximity) ---
+    // Footsteps
     double hearingThreshold = 300.0; 
     if (botDist < hearingThreshold) {
       if (!_isFootstepsPlaying) {
@@ -238,32 +303,26 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // --- 2. NEW Layered Heartbeat Audio (State + Proximity) ---
+    // Layered Heartbeat Audio
     double targetHbVolume = 0.0;
     double targetHbRate = 1.0;
 
     if (bots[0].state == BotState.chasing) {
-      // Climax state: Immediate high intensity
       targetHbVolume = 1.0;
       targetHbRate = 2.0; 
-    } else if (botDist < 200.0) {
-      // Proximity state: Scales gently with distance
-      targetHbVolume = 1.0 - (botDist / 200.0);
+    } else if (botDist < config.panicRadius) {
+      targetHbVolume = 1.0 - (botDist / config.panicRadius);
       targetHbRate = 1.0 + (targetHbVolume * 0.5); 
     }
 
-    // Smooth Volume Envelope (Attack and Fade)
     if (_currentHeartbeatVolume < targetHbVolume) {
-      // Ramp up quickly when spotted (0.5 seconds to max)
       _currentHeartbeatVolume += 2.0 * dt; 
       if (_currentHeartbeatVolume > targetHbVolume) _currentHeartbeatVolume = targetHbVolume;
     } else if (_currentHeartbeatVolume > targetHbVolume) {
-      // Fade out slowly when chase ends (2.0 seconds from max to 0)
       _currentHeartbeatVolume -= 0.5 * dt; 
       if (_currentHeartbeatVolume < targetHbVolume) _currentHeartbeatVolume = targetHbVolume;
     }
 
-    // Apply the audio state
     if (_currentHeartbeatVolume > 0.0) {
       if (!_isHeartbeatPlaying) {
         _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
@@ -278,7 +337,7 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // --- Win & Loss Logic ---
+    // Win Logic
     if ((playerPos - exitPos).distance < exitRadius) {
       if (!isGameWon) {
         isGameWon = true;
@@ -310,21 +369,21 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // --- VISUAL HEARTBEAT PULSE ---
+    // 4. Visual Heartbeat Pulse accumulator
     bool isChasing = bots.any((b) => b.state == BotState.chasing);
     if (isChasing) {
-      double secondsPerBeat = 60.0 / 130.0; // 130 BPM panic heart rate
+      double secondsPerBeat = 60.0 / 130.0; 
       _pulseTimer += dt;
       if (_pulseTimer >= secondsPerBeat) {
-        visualPulseIntensity = 1.0; // Spike the visual intensity
-        _pulseTimer -= secondsPerBeat; // Keep the remainder for accurate timing
+        visualPulseIntensity = 1.0; 
+        _pulseTimer -= secondsPerBeat; 
       }
     } else {
       _pulseTimer = 0.0;
     }
 
     if (visualPulseIntensity > 0) {
-      visualPulseIntensity -= dt * 3.0; // Fade out quickly over ~0.33 seconds
+      visualPulseIntensity -= dt * 3.0; 
       if (visualPulseIntensity < 0) visualPulseIntensity = 0.0;
     }
 
@@ -359,7 +418,7 @@ class GameModel extends ChangeNotifier {
     for (var wave in waves) {
       double distToWaveCenter = (bot.position - wave.center).distance;
       if (wave.radius >= distToWaveCenter) {
-        double distanceFactor = 1.0 - (distToWaveCenter / 400.0).clamp(0.0, 1.0);
+        double distanceFactor = 1.0 - (distToWaveCenter / config.hearingRadius).clamp(0.0, 1.0);
         double intensity = wave.opacity * distanceFactor;
 
         if (intensity > bot.hearingThreshold && intensity > strongestCurrentWave) {
@@ -393,7 +452,7 @@ class GameModel extends ChangeNotifier {
           
           if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
             bot.state = BotState.searching;
-            bot.stateTimer = 4.0; 
+            bot.stateTimer = config.searchDuration; 
             bot.lastSeenPosition = bot.lastHeardPosition; 
             bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
             bot.lastHeardStrength = 0.0; 
@@ -412,7 +471,7 @@ class GameModel extends ChangeNotifier {
             
             if ((bot.position - bot.lastSeenPosition!).distance < 5.0) {
               bot.state = BotState.searching;
-              bot.stateTimer = 5.0; 
+              bot.stateTimer = config.searchDuration; 
               bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 80.0);
             }
           }
@@ -448,11 +507,12 @@ class GameModel extends ChangeNotifier {
     }
   }
 
-  void _moveBot(Bot bot, Offset destination, double dt, double speedMultiplier) {
+  void _moveBot(Bot bot, Offset destination, double dt, double stateSpeedMultiplier) {
     Offset dir = destination - bot.position;
     if (dir.distance > 0) {
       bot.facingAngle = atan2(dir.dy, dir.dx); 
-      bot.position += (dir / dir.distance) * (bot.baseSpeed * speedMultiplier * dt);
+      double finalSpeed = bot.baseSpeed * stateSpeedMultiplier * config.botSpeedMultiplier;
+      bot.position += (dir / dir.distance) * (finalSpeed * dt);
     }
   }
 
@@ -464,23 +524,28 @@ class GameModel extends ChangeNotifier {
   }
 
   void emitWave() {
-    if (!isGameOver && !isGameWon && !isCaught) {
+    if (!isGameOver && !isGameWon && !isCaught && currentEchoCharges > 0) {
       waves.add(EchoWave(center: playerPos));
       _sfxPlayer.play(AssetSource('audio/ping.ogg')); 
+      currentEchoCharges--;
     }
   }
 
   void resetGame() {
     isGameOver = false;
     isGameWon = false;
+    
     isCaught = false;
     caughtTimer = 0.0;
+    
     elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
     _actualVelocity = Offset.zero; 
     
-    _generateLevel(); // <--- Generate a brand new layout every time they restart!
+    currentEchoCharges = config.maxEchoCharges; // Replenish charges
+
+    _generateLevel(); // Generate a fresh new maze layout
     
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
