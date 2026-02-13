@@ -79,6 +79,10 @@ class GameModel extends ChangeNotifier {
   // NEW: Audio smooth transition state
   double _currentHeartbeatVolume = 0.0;
 
+  // NEW: Visual Heartbeat Pulse
+  double visualPulseIntensity = 0.0;
+  double _pulseTimer = 0.0;
+
   GameModel() {
     _loadBestTime();
     _initAudio();
@@ -257,6 +261,24 @@ class GameModel extends ChangeNotifier {
           _breathingPlayer.play(AssetSource('audio/breathing.ogg')); 
         }
       }
+    }
+
+    // --- VISUAL HEARTBEAT PULSE ---
+    bool isChasing = bots.any((b) => b.state == BotState.chasing);
+    if (isChasing) {
+      double secondsPerBeat = 60.0 / 130.0; // 130 BPM panic heart rate
+      _pulseTimer += dt;
+      if (_pulseTimer >= secondsPerBeat) {
+        visualPulseIntensity = 1.0; // Spike the visual intensity
+        _pulseTimer -= secondsPerBeat; // Keep the remainder for accurate timing
+      }
+    } else {
+      _pulseTimer = 0.0;
+    }
+
+    if (visualPulseIntensity > 0) {
+      visualPulseIntensity -= dt * 3.0; // Fade out quickly over ~0.33 seconds
+      if (visualPulseIntensity < 0) visualPulseIntensity = 0.0;
     }
 
     notifyListeners();

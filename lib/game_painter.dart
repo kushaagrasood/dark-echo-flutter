@@ -41,7 +41,7 @@ class GamePainter extends CustomPainter {
       canvas.translate(dx, dy);
     }
 
-    // 3. Draw Exit Door (Removed the \r formatting errors)
+    // 3. Draw Exit Door
     final exitPaint = Paint()
       ..color = Colors.greenAccent.withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0)
@@ -83,6 +83,24 @@ class GamePainter extends CustomPainter {
     // 6. Draw Player
     final playerPaint = Paint()..color = Colors.blueAccent;
     canvas.drawCircle(model.playerPos, 8.0, playerPaint);
+
+    // --- NEW: Visual Heartbeat Pulse ---
+    if (model.visualPulseIntensity > 0) {
+      // Radius expands from 50 to 200 as the pulse decays
+      double pulseRadius = 50.0 + ((1.0 - model.visualPulseIntensity) * 150.0); 
+      
+      final pulsePaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.redAccent.withValues(alpha: model.visualPulseIntensity * 0.25), // Flash red
+            Colors.transparent,
+          ],
+          stops: const [0.2, 1.0],
+        ).createShader(Rect.fromCircle(center: model.playerPos, radius: pulseRadius))
+        ..blendMode = BlendMode.srcOver;
+
+      canvas.drawCircle(model.playerPos, pulseRadius, pulsePaint);
+    }
 
     // 7. Draw Fear Vignette Overlay
     if (fearFactor > 0) {
