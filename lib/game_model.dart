@@ -21,10 +21,9 @@ class Bot {
   BotState state = BotState.idle;
   double stateTimer = 0.0;
   
-  // --- NEW: Vision & Memory Mechanics ---
   double facingAngle = 0.0; 
   Offset? lastSeenPosition;
-  Offset? currentWaypoint; // General purpose movement target for searching/investigating
+  Offset? currentWaypoint; 
 
   Offset? lastHeardPosition;
   double lastHeardStrength = 0.0;
@@ -76,6 +75,9 @@ class GameModel extends ChangeNotifier {
   
   bool _isFootstepsPlaying = false;
   bool _isHeartbeatPlaying = false;
+  
+  // NEW: Audio smooth transition state
+  double _currentHeartbeatVolume = 0.0;
 
   GameModel() {
     _loadBestTime();
@@ -167,6 +169,7 @@ class GameModel extends ChangeNotifier {
 
     double botDist = (bots[0].position - playerPos).distance;
     
+    // --- 1. Footsteps Audio (Strictly Proximity) ---
     double hearingThreshold = 300.0; 
     if (botDist < hearingThreshold) {
       if (!_isFootstepsPlaying) {
@@ -184,16 +187,39 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    double heartbeatThreshold = 150.0;
-    if (botDist < heartbeatThreshold) {
+    // --- 2. NEW Layered Heartbeat Audio (State + Proximity) ---
+    double targetHbVolume = 0.0;
+    double targetHbRate = 1.0;
+
+    if (bots[0].state == BotState.chasing) {
+      // Climax state: Immediate high intensity
+      targetHbVolume = 1.0;
+      targetHbRate = 2.0; 
+    } else if (botDist < 200.0) {
+      // Proximity state: Scales gently with distance
+      targetHbVolume = 1.0 - (botDist / 200.0);
+      targetHbRate = 1.0 + (targetHbVolume * 0.5); 
+    }
+
+    // Smooth Volume Envelope (Attack and Fade)
+    if (_currentHeartbeatVolume < targetHbVolume) {
+      // Ramp up quickly when spotted (0.5 seconds to max)
+      _currentHeartbeatVolume += 2.0 * dt; 
+      if (_currentHeartbeatVolume > targetHbVolume) _currentHeartbeatVolume = targetHbVolume;
+    } else if (_currentHeartbeatVolume > targetHbVolume) {
+      // Fade out slowly when chase ends (2.0 seconds from max to 0)
+      _currentHeartbeatVolume -= 0.5 * dt; 
+      if (_currentHeartbeatVolume < targetHbVolume) _currentHeartbeatVolume = targetHbVolume;
+    }
+
+    // Apply the audio state
+    if (_currentHeartbeatVolume > 0.0) {
       if (!_isHeartbeatPlaying) {
         _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
         _isHeartbeatPlaying = true;
       }
-      double hbVol = 1.0 - (botDist / heartbeatThreshold);
-      _heartbeatPlayer.setVolume(hbVol.clamp(0.0, 1.0));
-      double hbRate = 1.0 + (1.5 * (1.0 - (botDist / heartbeatThreshold)));
-      _heartbeatPlayer.setPlaybackRate(hbRate.clamp(1.0, 2.5));
+      _heartbeatPlayer.setVolume(_currentHeartbeatVolume.clamp(0.0, 1.0));
+      _heartbeatPlayer.setPlaybackRate(targetHbRate.clamp(1.0, 2.0));
     } else {
       if (_isHeartbeatPlaying) {
         _heartbeatPlayer.pause();
@@ -201,6 +227,7 @@ class GameModel extends ChangeNotifier {
       }
     }
 
+    // --- Win & Loss Logic ---
     if ((playerPos - exitPos).distance < exitRadius) {
       if (!isGameWon) {
         isGameWon = true;
@@ -235,19 +262,15 @@ class GameModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- UPGRADED FINITE STATE MACHINE LOGIC ---
   void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
-    
-    // 1. Calculate Vision Cone & Line of Sight
     bool canSeePlayer = false;
-    if (distToPlayer <= 220.0) { // Max vision distance
+    if (distToPlayer <= 220.0) { 
       Offset toPlayer = playerPos - bot.position;
       double angleToPlayer = atan2(toPlayer.dy, toPlayer.dx);
       
       double angleDiff = (angleToPlayer - bot.facingAngle).abs();
       if (angleDiff > pi) angleDiff = 2 * pi - angleDiff;
       
-      // 120-degree Field of View (+/- 60 degrees from center)
       if (angleDiff <= (pi / 3)) { 
         if (_hasLineOfSight(bot.position, playerPos)) {
           canSeePlayer = true;
@@ -255,13 +278,11 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // 2. High-Priority Vision Override
     if (canSeePlayer) {
       bot.state = BotState.chasing;
-      bot.lastSeenPosition = playerPos; // Constantly update memory while visible
+      bot.lastSeenPosition = playerPos; 
     }
 
-    // 3. Audio Perception Logic
     bool heardNewSound = false;
     double strongestCurrentWave = 0.0;
     Offset? strongestWavePos;
@@ -289,15 +310,12 @@ class GameModel extends ChangeNotifier {
       bot.lastHeardStrength -= 0.1 * dt; 
     }
 
-    // Sound distracts bot ONLY if not already in a high-alert chase/search
     if (heardNewSound && bot.state != BotState.chasing && bot.state != BotState.searching) {
       bot.state = BotState.investigating;
     }
 
-    // 4. State Behaviors
     switch (bot.state) {
       case BotState.idle:
-        // Stands still, looking in the last direction it faced
         break;
 
       case BotState.investigating:
@@ -305,10 +323,9 @@ class GameModel extends ChangeNotifier {
           _moveBot(bot, bot.lastHeardPosition!, dt, 1.0); 
           
           if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
-            // Reached audio source, transition into search pattern
             bot.state = BotState.searching;
             bot.stateTimer = 4.0; 
-            bot.lastSeenPosition = bot.lastHeardPosition; // Use search logic around sound
+            bot.lastSeenPosition = bot.lastHeardPosition; 
             bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
             bot.lastHeardStrength = 0.0; 
           }
@@ -319,16 +336,14 @@ class GameModel extends ChangeNotifier {
 
       case BotState.chasing:
         if (canSeePlayer) {
-          _moveBot(bot, playerPos, dt, 1.4); // Sprint
+          _moveBot(bot, playerPos, dt, 1.4); 
         } else {
-          // Line of Sight Broken: Sprint to last known location
           if (bot.lastSeenPosition != null) {
             _moveBot(bot, bot.lastSeenPosition!, dt, 1.4); 
             
             if ((bot.position - bot.lastSeenPosition!).distance < 5.0) {
-              // Reached last known location, player is gone -> Search area
               bot.state = BotState.searching;
-              bot.stateTimer = 5.0; // Randomly search for 5 seconds
+              bot.stateTimer = 5.0; 
               bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 80.0);
             }
           }
@@ -338,10 +353,9 @@ class GameModel extends ChangeNotifier {
       case BotState.searching:
         bot.stateTimer -= dt;
         if (bot.currentWaypoint != null) {
-          _moveBot(bot, bot.currentWaypoint!, dt, 0.6); // Move slower, scanning
+          _moveBot(bot, bot.currentWaypoint!, dt, 0.6); 
           
           if ((bot.position - bot.currentWaypoint!).distance < 5.0) {
-            // Reached waypoint, pick a new one near the last known event
             if (bot.lastSeenPosition != null) {
                bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 80.0);
             }
@@ -350,7 +364,7 @@ class GameModel extends ChangeNotifier {
         
         if (bot.stateTimer <= 0) {
           bot.state = BotState.cooldown;
-          bot.stateTimer = 3.0; // Suspicion dropping
+          bot.stateTimer = 3.0; 
           bot.lastSeenPosition = null;
           bot.currentWaypoint = null;
         }
@@ -368,7 +382,6 @@ class GameModel extends ChangeNotifier {
   void _moveBot(Bot bot, Offset destination, double dt, double speedMultiplier) {
     Offset dir = destination - bot.position;
     if (dir.distance > 0) {
-      // Update facing angle for the vision cone calculation
       bot.facingAngle = atan2(dir.dy, dir.dx); 
       bot.position += (dir / dir.distance) * (bot.baseSpeed * speedMultiplier * dt);
     }
@@ -405,6 +418,7 @@ class GameModel extends ChangeNotifier {
     
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
+    _currentHeartbeatVolume = 0.0; // Reset fade envelope
     
     _breathingPlayer.stop(); 
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
