@@ -87,7 +87,14 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white54, width: 2),
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withAlpha(25), //updated from withOpacity
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withAlpha(40),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    )
+                  ]
                 ),
                 child: const Center(
                   child: Text("CLAP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
