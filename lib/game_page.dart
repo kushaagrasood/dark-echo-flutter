@@ -87,10 +87,10 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white54, width: 2),
-                  color: Colors.white.withAlpha(25), //updated from withOpacity
+                  color: Colors.white.withValues(alpha: 0.1), 
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withAlpha(40),
+                      color: Colors.white.withValues(alpha: 0.15),
                       blurRadius: 12,
                       spreadRadius: 2,
                     )
