@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'game_page.dart';
+import 'main_menu.dart'; // Import the new menu
 
 void main() {
-  runApp(const DarkEchoApp());
+  runApp(const EchoLabyrinthApp());
 }
 
-class DarkEchoApp extends StatelessWidget {
-  const DarkEchoApp({super.key});
+class EchoLabyrinthApp extends StatelessWidget {
+  const EchoLabyrinthApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Echo Labyrinth',
+      title: 'Dark Echo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark),
-      home: const GamePage(),
+      home: const MainMenu(), // Change this to MainMenu!
     );
   }
 }
