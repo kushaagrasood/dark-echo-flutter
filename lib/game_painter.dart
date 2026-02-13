@@ -14,17 +14,21 @@ class GamePainter extends CustomPainter {
     // Phase 2: Draw Exit Door (Faint glowing green square)
     final exitPaint = Paint()
       ..color = Colors.greenAccent.withValues(alpha: 0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0)
       ..style = PaintingStyle.fill;
     canvas.drawRect(
       Rect.fromCenter(center: model.exitPos, width: model.exitRadius * 2, height: model.exitRadius * 2),
       exitPaint,
     );
+    
 
     for (var wave in model.waves) {
       final wallPaint = Paint()
         // <-- Cleanly using withValues(alpha: ...)
         ..color = Colors.white.withValues(alpha: wave.opacity.clamp(0.0, 1.0))
         ..strokeWidth = 3.0
+        ..strokeCap = StrokeCap.round // Rounds the edges of the walls
+        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3.0) // Subtle radar glow
         ..style = PaintingStyle.stroke;
 
       for (var wall in model.walls) {

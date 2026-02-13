@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'game_page.dart';
 
 class MainMenu extends StatelessWidget {
@@ -12,30 +13,33 @@ class MainMenu extends StatelessWidget {
         shape: RoundedRectangleBorder(
             side: const BorderSide(color: Colors.white24),
             borderRadius: BorderRadius.circular(0)),
-        title: const Text("DATABASE // INSTRUCTIONS",
-            style: TextStyle(
+        title: Text("DATABASE // INSTRUCTIONS",
+            style: GoogleFonts.vt323(
+              textStyle: const TextStyle(
                 color: Colors.white,
-                fontFamily: 'Courier',
-                fontWeight: FontWeight.bold)),
-        content: const Column(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            )),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("> GOAL: Reach the green exit.",
-                style: TextStyle(color: Colors.white70, fontFamily: 'Courier')),
-            SizedBox(height: 10),
+                style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white70, fontSize: 20))),
+            const SizedBox(height: 10),
             Text("> MECHANIC: The maze is pitch black. Tap CLAP to emit a sonar wave and reveal walls.",
-                style: TextStyle(color: Colors.white70, fontFamily: 'Courier')),
-            SizedBox(height: 10),
+                style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white70, fontSize: 20))),
+            const SizedBox(height: 10),
             Text("> WARNING: Clapping alerts the Listener. It will hunt the source of the sound. Do not get caught.",
-                style: TextStyle(color: Colors.redAccent, fontFamily: 'Courier')),
+                style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.redAccent, fontSize: 20))),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("[ CLOSE ]",
-                style: TextStyle(color: Colors.white54, fontFamily: 'Courier')),
+            child: Text("[ CLOSE ]",
+                style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white54, fontSize: 20))),
           )
         ],
       ),
@@ -53,13 +57,18 @@ class MainMenu extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   "DARK ECHO",
-                  style: TextStyle(
-                    fontSize: 48,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 10,
+                  style: GoogleFonts.vt323(
+                    textStyle: const TextStyle(
+                      fontSize: 64,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 10,
+                      shadows: [
+                        Shadow(color: Colors.white54, blurRadius: 15) // Adds a slight neon bloom to the title
+                      ]
+                    ),
                   ),
                 ),
                 const SizedBox(height: 50),
@@ -77,11 +86,9 @@ class MainMenu extends StatelessWidget {
                       border: Border.all(color: Colors.white54),
                       color: Colors.white.withValues(alpha: 0.05),
                     ),
-                    child: const Text("[ INITIALIZE ]",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Courier',
-                            fontSize: 18)),
+                    child: Text("[ INITIALIZE ]",
+                        style: GoogleFonts.vt323(
+                            textStyle: const TextStyle(color: Colors.white, fontSize: 24))),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -93,27 +100,26 @@ class MainMenu extends StatelessWidget {
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.white24),
                     ),
-                    child: const Text("[ DATABASE ]",
-                        style: TextStyle(
-                            color: Colors.white54,
-                            fontFamily: 'Courier',
-                            fontSize: 18)),
+                    child: Text("[ DATABASE ]",
+                        style: GoogleFonts.vt323(
+                            textStyle: const TextStyle(color: Colors.white54, fontSize: 24))),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Your "About Me" in the corner (Terminal Style)
-          const Positioned(
+          // "About Me" in the corner
+          Positioned(
             bottom: 20,
             right: 20,
             child: Text(
               "> auth: your_name_here_",
-              style: TextStyle(
-                color: Colors.white38,
-                fontFamily: 'Courier',
-                fontSize: 14,
+              style: GoogleFonts.vt323(
+                textStyle: const TextStyle(
+                  color: Colors.white38,
+                  fontSize: 18,
+                ),
               ),
             ),
           ),
