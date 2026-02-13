@@ -60,7 +60,26 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
           ),
 
-          // 2. Controls Layer (Only show if playing)
+          // 2. Phase 3: Live Timer HUD
+          Positioned(
+            top: 60,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                "${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s",
+                style: const TextStyle(
+                  color: Colors.white54, 
+                  fontSize: 24, 
+                  fontWeight: FontWeight.bold, 
+                  fontFamily: 'Courier', // Gives it a cool digital/hacking vibe
+                  letterSpacing: 2
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Controls Layer (Only show if playing)
           if (!_model.isGameOver && !_model.isGameWon) ...[
             Positioned(
               bottom: 40,
@@ -102,7 +121,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
           ],
 
-          // 3. Phase 2: Game Over Overlay (Loss)
+          // 4. Phase 2: Game Over Overlay (Loss)
           if (_model.isGameOver)
             Container(
               color: Colors.redAccent.withValues(alpha: 0.8),
@@ -122,20 +141,33 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 4. Phase 2: You Escaped Overlay (Win)
+          // 5. Phase 2: You Escaped Overlay (Win)
           if (_model.isGameWon)
             Container(
-              color: Colors.greenAccent.withValues(alpha: 0.8),
+              color: Colors.greenAccent.withValues(alpha: 0.85),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("ESCAPED", style: TextStyle(fontSize: 50, color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 5)),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Time: ${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s", 
+                      style: const TextStyle(fontSize: 24, color: Colors.black87, fontWeight: FontWeight.w600)
+                    ),
+                    if (_model.bestTimeMilliseconds != null)
+                      Text(
+                        "Best: ${(_model.bestTimeMilliseconds! / 1000).toStringAsFixed(2)}s", 
+                        style: const TextStyle(fontSize: 20, color: Colors.black54)
+                      ),
+                    const SizedBox(height: 30),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
                       onPressed: () => _model.resetGame(),
-                      child: const Text("PLAY AGAIN"),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        child: Text("PLAY AGAIN", style: TextStyle(fontSize: 18)),
+                      ),
                     )
                   ],
                 ),

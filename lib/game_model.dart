@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 // ignore: unused_import
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EchoWave {
   Offset center;
@@ -26,11 +27,13 @@ class GameModel extends ChangeNotifier {
   Offset playerPos = const Offset(50, 50);
   final double playerRadius = 8.0;
   
-  // Phase 2: Game States
   bool isGameOver = false;
   bool isGameWon = false;
   
-  // Phase 2: The Exit Door
+  // Phase 3: Timer Data
+  int elapsedMilliseconds = 0;
+  int? bestTimeMilliseconds;
+  
   Offset exitPos = const Offset(350, 450); 
   final double exitRadius = 20.0;
 
@@ -43,18 +46,35 @@ class GameModel extends ChangeNotifier {
   List<EchoWave> waves = [];
   Offset velocity = Offset.zero;
   List<Bot> bots = [Bot(position: const Offset(200, 250))];
+
+  // Constructor loads the best time immediately
+  GameModel() {
+    _loadBestTime();
+  }
+
+  Future<void> _loadBestTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    bestTimeMilliseconds = prefs.getInt('best_time');
+    notifyListeners();
+  }
+
+  Future<void> _saveBestTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('best_time', bestTimeMilliseconds!);
+  }
   
   void update(double dt) {
-    if (isGameOver || isGameWon) return; // Stop the game if it's over
+    if (isGameOver || isGameWon) return; 
 
-    // 1. Update Waves
+    // Phase 3: Increment Timer
+    elapsedMilliseconds += (dt * 1000).toInt();
+
     for (int i = waves.length - 1; i >= 0; i--) {
       waves[i].radius += 150 * dt;
       waves[i].opacity -= 0.5 * dt;
       if (waves[i].opacity <= 0) waves.removeAt(i);
     }
 
-    // 2. Update Player Position
     double speed = 150 * dt;
     Offset moveX = Offset(velocity.dx * speed, 0);
     Offset moveY = Offset(0, velocity.dy * speed);
@@ -65,12 +85,15 @@ class GameModel extends ChangeNotifier {
     Offset newPosY = playerPos + moveY;
     if (!_checkCollision(newPosY)) playerPos = newPosY;
 
-    // Phase 2: Win Detection (Did player touch the exit?)
+    // Phase 2 & 3: Win Detection & Highscore Logic
     if ((playerPos - exitPos).distance < exitRadius) {
       isGameWon = true;
+      if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
+        bestTimeMilliseconds = elapsedMilliseconds;
+        _saveBestTime(); // Save new record to device!
+      }
     }
 
-    // 3. Update Bots
     for (var bot in bots) {
       for (var wave in waves) {
         if ((bot.position - wave.center).distance <= wave.radius) {
@@ -87,7 +110,6 @@ class GameModel extends ChangeNotifier {
         }
       }
 
-      // Loss Detection
       if ((bot.position - playerPos).distance < 15) {
         isGameOver = true;
       }
@@ -100,14 +122,14 @@ class GameModel extends ChangeNotifier {
     if (!isGameOver && !isGameWon) waves.add(EchoWave(center: playerPos));
   }
 
-  // Phase 2: Reset Game Logic
   void resetGame() {
     playerPos = const Offset(50, 50);
     isGameOver = false;
     isGameWon = false;
+    elapsedMilliseconds = 0; // Phase 3: Reset clock
     waves.clear();
     velocity = Offset.zero;
-    bots = [Bot(position: const Offset(200, 250))]; // Reset bot to middle
+    bots = [Bot(position: const Offset(200, 250))];
     notifyListeners();
   }
 
