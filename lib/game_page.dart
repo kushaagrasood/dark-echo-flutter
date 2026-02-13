@@ -22,14 +22,11 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     super.initState();
     _model = GameModel();
     
-    // Listen to model changes to trigger a UI repaint
     _model.addListener(() {
       setState(() {});
     });
 
-        // The Game Loop
     _ticker = createTicker((Duration elapsed) {
-      // Calculate dynamic delta time (dt) for smooth movement regardless of frame drops
       double dt = (elapsed - _lastTime).inMicroseconds / 1000000.0;
       _lastTime = elapsed;
       
@@ -53,14 +50,12 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       backgroundColor: const Color(0xFF050505),
       body: Stack(
         children: [
-          // 1. The Game Layer
           Positioned.fill(
             child: CustomPaint(
               painter: GamePainter(_model),
             ),
           ),
 
-          // 2. Phase 3: Live Timer HUD
           Positioned(
             top: 60,
             left: 0,
@@ -72,14 +67,13 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                   color: Colors.white54, 
                   fontSize: 24, 
                   fontWeight: FontWeight.bold, 
-                  fontFamily: 'Courier', // Gives it a cool digital/hacking vibe
+                  fontFamily: 'Courier', 
                   letterSpacing: 2
                 ),
               ),
             ),
           ),
 
-          // 3. Controls Layer (Only show if playing)
           if (!_model.isGameOver && !_model.isGameWon) ...[
             Positioned(
               bottom: 40,
@@ -114,14 +108,18 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                     ]
                   ),
                   child: const Center(
-                    child: Text("CLAP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text("[ PING ]", style: TextStyle(
+                      color: Colors.white, 
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Courier',
+                      fontSize: 16,
+                    )),
                   ),
                 ),
               ),
             ),
           ],
 
-          // 4. Phase 2: Game Over Overlay (Loss)
           if (_model.isGameOver)
             Container(
               color: Colors.redAccent.withValues(alpha: 0.8),
@@ -141,7 +139,6 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 5. Phase 2: You Escaped Overlay (Win)
           if (_model.isGameWon)
             Container(
               color: Colors.greenAccent.withValues(alpha: 0.85),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-//import 'dart:math';
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class EchoWave {
   Offset center;
@@ -29,7 +30,6 @@ class GameModel extends ChangeNotifier {
   bool isGameOver = false;
   bool isGameWon = false;
   
-  // Phase 3: Timer Data
   int elapsedMilliseconds = 0;
   int? bestTimeMilliseconds;
   
@@ -46,9 +46,31 @@ class GameModel extends ChangeNotifier {
   Offset velocity = Offset.zero;
   List<Bot> bots = [Bot(position: const Offset(200, 250))];
 
-  // Constructor loads the best time immediately
+  // --- AUDIO ENGINE ---
+  final AudioPlayer _bgmPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _footstepsPlayer = AudioPlayer();
+  final AudioPlayer _jumpscarePlayer = AudioPlayer();
+  bool _isFootstepsPlaying = false;
+
   GameModel() {
     _loadBestTime();
+    _initAudio();
+  }
+
+  void _initAudio() async {
+    await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+    await _footstepsPlayer.setReleaseMode(ReleaseMode.loop);
+    _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
+  }
+
+  @override
+  void dispose() {
+    _bgmPlayer.dispose();
+    _sfxPlayer.dispose();
+    _footstepsPlayer.dispose();
+    _jumpscarePlayer.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBestTime() async {
@@ -65,7 +87,6 @@ class GameModel extends ChangeNotifier {
   void update(double dt) {
     if (isGameOver || isGameWon) return; 
 
-    // Phase 3: Increment Timer
     elapsedMilliseconds += (dt * 1000).toInt();
 
     for (int i = waves.length - 1; i >= 0; i--) {
@@ -84,12 +105,40 @@ class GameModel extends ChangeNotifier {
     Offset newPosY = playerPos + moveY;
     if (!_checkCollision(newPosY)) playerPos = newPosY;
 
-    // Phase 2 & 3: Win Detection & Highscore Logic
+    // --- PROXIMITY AUDIO LOGIC ---
+    double botDist = (bots[0].position - playerPos).distance;
+    double hearingThreshold = 300.0; 
+
+    if (botDist < hearingThreshold) {
+      if (!_isFootstepsPlaying) {
+        _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
+        _isFootstepsPlaying = true;
+      }
+      
+      double vol = 1.0 - (botDist / hearingThreshold);
+      _footstepsPlayer.setVolume(vol.clamp(0.0, 1.0));
+      
+      double rate = 1.0 + (1.0 - (botDist / hearingThreshold));
+      _footstepsPlayer.setPlaybackRate(rate.clamp(1.0, 2.0));
+    } else {
+      if (_isFootstepsPlaying) {
+        _footstepsPlayer.pause();
+        _isFootstepsPlaying = false;
+      }
+    }
+
+    // --- WIN STATE ---
     if ((playerPos - exitPos).distance < exitRadius) {
-      isGameWon = true;
-      if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
-        bestTimeMilliseconds = elapsedMilliseconds;
-        _saveBestTime(); // Save new record to device!
+      if (!isGameWon) {
+        isGameWon = true;
+        _bgmPlayer.stop();
+        _footstepsPlayer.stop();
+        _sfxPlayer.play(AssetSource('audio/victory.ogg')); 
+        
+        if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
+          bestTimeMilliseconds = elapsedMilliseconds;
+          _saveBestTime(); 
+        }
       }
     }
 
@@ -109,8 +158,14 @@ class GameModel extends ChangeNotifier {
         }
       }
 
+      // --- LOSS STATE (JUMPSCARE) ---
       if ((bot.position - playerPos).distance < 15) {
-        isGameOver = true;
+        if (!isGameOver) {
+          isGameOver = true;
+          _bgmPlayer.stop();
+          _footstepsPlayer.stop();
+          _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
+        }
       }
     }
 
@@ -118,17 +173,24 @@ class GameModel extends ChangeNotifier {
   }
 
   void emitWave() {
-    if (!isGameOver && !isGameWon) waves.add(EchoWave(center: playerPos));
+    if (!isGameOver && !isGameWon) {
+      waves.add(EchoWave(center: playerPos));
+      _sfxPlayer.play(AssetSource('audio/clap.ogg')); // PING sound
+    }
   }
 
   void resetGame() {
     playerPos = const Offset(50, 50);
     isGameOver = false;
     isGameWon = false;
-    elapsedMilliseconds = 0; // Phase 3: Reset clock
+    elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
     bots = [Bot(position: const Offset(200, 250))];
+    
+    _isFootstepsPlaying = false;
+    _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
+    
     notifyListeners();
   }
 
