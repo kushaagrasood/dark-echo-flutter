@@ -18,7 +18,8 @@ class GamePainter extends CustomPainter {
     // 2. Draw Walls (Only visible when hit by wave)
     for (var wave in model.waves) {
       final wallPaint = Paint()
-        ..color = Colors.white.withOpacity(wave.opacity.clamp(0.0, 1.0))
+        ..color = Colors.white.withAlpha((wave.opacity.clamp(0.0, 1.0) * 255).toInt(), //replaces withOpacity since it is deprecated
+        )
         ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke;
 
