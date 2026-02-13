@@ -11,7 +11,7 @@ class EchoWave {
   EchoWave({required this.center, this.radius = 0.0, this.opacity = 1.0});
 }
 
-// 1. Define the FSM States
+// FSM States
 enum BotState { idle, investigating, searching, chasing, cooldown }
 
 class Bot {
@@ -26,13 +26,14 @@ class Bot {
   // Advanced Hearing Mechanics
   Offset? lastHeardPosition;
   double lastHeardStrength = 0.0;
-  final double hearingThreshold = 0.15; // Ignore waves weaker than this
+  final double hearingThreshold = 0.15; 
 
   Bot({
     required this.position,
     this.opacity = 1.0,
   }); 
 }
+
 class GameModel extends ChangeNotifier {
   Offset playerPos = const Offset(50, 50);
   final double playerRadius = 8.0;
@@ -53,8 +54,14 @@ class GameModel extends ChangeNotifier {
   ];
 
   List<EchoWave> waves = [];
-  Offset velocity = Offset.zero;
   List<Bot> bots = [Bot(position: const Offset(200, 250))];
+
+  // --- PHYSICS ENGINE VARIABLES ---
+  Offset velocity = Offset.zero; // This receives Joystick Input (-1.0 to 1.0) from GamePage
+  Offset _actualVelocity = Offset.zero; // Internal physics velocity
+  final double maxSpeed = 150.0;
+  final double acceleration = 800.0;
+  final double friction = 600.0;
 
   // --- AUDIO ENGINE ---
   final AudioPlayer _bgmPlayer = AudioPlayer();
@@ -104,23 +111,53 @@ class GameModel extends ChangeNotifier {
 
     elapsedMilliseconds += (dt * 1000).toInt();
 
+    // 1. Update Waves
     for (int i = waves.length - 1; i >= 0; i--) {
       waves[i].radius += 150 * dt;
       waves[i].opacity -= 0.5 * dt;
       if (waves[i].opacity <= 0) waves.removeAt(i);
     }
 
-    double speed = 150 * dt;
-    Offset moveX = Offset(velocity.dx * speed, 0);
-    Offset moveY = Offset(0, velocity.dy * speed);
+    // 2. --- PLAYER PHYSICS & MOMENTUM ---
+    if (velocity != Offset.zero) {
+      // Apply Acceleration based on joystick input direction
+      _actualVelocity += velocity * acceleration * dt;
+      
+      // Clamp to max speed
+      if (_actualVelocity.distance > maxSpeed) {
+        _actualVelocity = (_actualVelocity / _actualVelocity.distance) * maxSpeed;
+      }
+    } else {
+      // Apply Friction when joystick is released
+      double currentSpeed = _actualVelocity.distance;
+      if (currentSpeed > 0) {
+        double newSpeed = currentSpeed - friction * dt;
+        if (newSpeed <= 0) {
+          _actualVelocity = Offset.zero;
+        } else {
+          _actualVelocity = (_actualVelocity / currentSpeed) * newSpeed;
+        }
+      }
+    }
 
+    // 3. --- DISCRETE AXIS RESOLUTION (Sliding & Jitter Prevention) ---
+    Offset moveX = Offset(_actualVelocity.dx * dt, 0);
     Offset newPosX = playerPos + moveX;
-    if (!_checkCollision(newPosX)) playerPos = newPosX;
+    if (!_checkCollision(newPosX)) {
+      playerPos = newPosX;
+    } else {
+      _actualVelocity = Offset(0, _actualVelocity.dy); // Kill X-momentum on impact
+    }
 
+    Offset moveY = Offset(0, _actualVelocity.dy * dt);
     Offset newPosY = playerPos + moveY;
-    if (!_checkCollision(newPosY)) playerPos = newPosY;
+    if (!_checkCollision(newPosY)) {
+      playerPos = newPosY;
+    } else {
+      _actualVelocity = Offset(_actualVelocity.dx, 0); // Kill Y-momentum on impact
+    }
 
-    // --- PROXIMITY AUDIO LOGIC ---
+    // 4. --- PROXIMITY AUDIO LOGIC ---
     double botDist = (bots[0].position - playerPos).distance;
     
     // Footsteps
@@ -159,7 +196,7 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // --- WIN STATE ---
+    // 5. --- WIN STATE ---
     if ((playerPos - exitPos).distance < exitRadius) {
       if (!isGameWon) {
         isGameWon = true;
@@ -175,7 +212,7 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // --- BOT AI & LOSS STATE ---
+    // 6. --- BOT AI & LOSS STATE ---
     for (var bot in bots) {
       _updateBotFSM(bot, dt, botDist);
 
@@ -195,7 +232,6 @@ class GameModel extends ChangeNotifier {
 
   // --- FINITE STATE MACHINE LOGIC ---
   void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
-    // 1. Global High-Priority Override: Proximity
     if (distToPlayer < 75.0) { 
       bot.state = BotState.chasing;
     }
@@ -204,19 +240,12 @@ class GameModel extends ChangeNotifier {
     double strongestCurrentWave = 0.0;
     Offset? strongestWavePos;
 
-    // 2. Advanced Hearing Evaluation (Performance Safe O(W) loop)
     for (var wave in waves) {
       double distToWaveCenter = (bot.position - wave.center).distance;
-      
-      // The wave ring must have physically expanded far enough to reach the bot
       if (wave.radius >= distToWaveCenter) {
-        
-        // Intensity = Opacity (fade over time) * Distance Attenuation
-        // Sounds further than 400 pixels are naturally muffled
         double distanceFactor = 1.0 - (distToWaveCenter / 400.0).clamp(0.0, 1.0);
         double intensity = wave.opacity * distanceFactor;
 
-        // Only process waves that break the threshold and are the loudest currently happening
         if (intensity > bot.hearingThreshold && intensity > strongestCurrentWave) {
           strongestCurrentWave = intensity;
           strongestWavePos = wave.center;
@@ -224,40 +253,33 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // 3. Memory & Distraction Logic
-    // If the new sound is louder than the decaying memory of the last sound, investigate it!
     if (strongestWavePos != null && strongestCurrentWave >= bot.lastHeardStrength) {
       bot.lastHeardPosition = strongestWavePos;
       bot.lastHeardStrength = strongestCurrentWave;
       heardNewSound = true;
     }
 
-    // Decay the memory of the sound strength so the bot can be distracted by new, slightly weaker sounds later
     if (bot.lastHeardStrength > 0) {
       bot.lastHeardStrength -= 0.1 * dt; 
     }
 
-    // Trigger state change if a valid sound was heard
     if (heardNewSound && bot.state != BotState.chasing) {
       bot.state = BotState.investigating;
     }
 
-    // 4. State Specific Behaviors
     switch (bot.state) {
       case BotState.idle:
-        // Stands still, waiting for input
         break;
 
       case BotState.investigating:
         if (bot.lastHeardPosition != null) {
-          _moveBot(bot, bot.lastHeardPosition!, dt, 1.0); // Standard speed
+          _moveBot(bot, bot.lastHeardPosition!, dt, 1.0); 
           
           if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
-            // Reached the exact origin of the sound, begin searching area
             bot.state = BotState.searching;
-            bot.stateTimer = 4.0; // Search for 4 seconds
+            bot.stateTimer = 4.0; 
             bot.lastHeardPosition = _getRandomNearbyPosition(bot.position, 60.0);
-            bot.lastHeardStrength = 0.0; // Clear memory of the sound once investigated
+            bot.lastHeardStrength = 0.0; 
           }
         } else {
           bot.state = BotState.idle;
@@ -267,27 +289,25 @@ class GameModel extends ChangeNotifier {
       case BotState.searching:
         bot.stateTimer -= dt;
         if (bot.lastHeardPosition != null) {
-          _moveBot(bot, bot.lastHeardPosition!, dt, 0.6); // Move slower, "scanning"
+          _moveBot(bot, bot.lastHeardPosition!, dt, 0.6); 
           
           if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
-            // Reached the search waypoint, pick a new random one
             bot.lastHeardPosition = _getRandomNearbyPosition(bot.position, 60.0);
           }
         }
         
         if (bot.stateTimer <= 0) {
           bot.state = BotState.cooldown;
-          bot.stateTimer = 2.0; // Rest for 2 seconds before returning to idle
+          bot.stateTimer = 2.0; 
           bot.lastHeardPosition = null;
         }
         break;
 
       case BotState.chasing:
         bot.lastHeardPosition = playerPos;
-        _moveBot(bot, playerPos, dt, 1.4); // Sprint faster than normal
+        _moveBot(bot, playerPos, dt, 1.4); 
         
         if (distToPlayer > 120.0) { 
-          // Player managed to break direct line of sight/proximity
           bot.state = BotState.cooldown;
           bot.stateTimer = 3.0;
           bot.lastHeardPosition = null;
@@ -304,7 +324,6 @@ class GameModel extends ChangeNotifier {
     }
   }
 
-  // AI Helper: Vector Movement
   void _moveBot(Bot bot, Offset destination, double dt, double speedMultiplier) {
     Offset dir = destination - bot.position;
     if (dir.distance > 0) {
@@ -312,7 +331,6 @@ class GameModel extends ChangeNotifier {
     }
   }
 
-  // AI Helper: Random Waypoint Generation
   Offset _getRandomNearbyPosition(Offset center, double radius) {
     final random = Random();
     double angle = random.nextDouble() * 2 * pi;
@@ -334,8 +352,8 @@ class GameModel extends ChangeNotifier {
     elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
+    _actualVelocity = Offset.zero; // Reset physics
     
-    // Reset Bot FSM
     bots = [Bot(position: const Offset(200, 250))];
     
     _isFootstepsPlaying = false;
