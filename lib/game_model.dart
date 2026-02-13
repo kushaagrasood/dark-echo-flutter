@@ -50,8 +50,11 @@ class GameModel extends ChangeNotifier {
   final AudioPlayer _bgmPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _footstepsPlayer = AudioPlayer();
+  final AudioPlayer _heartbeatPlayer = AudioPlayer(); // Added Heartbeat Player
   final AudioPlayer _jumpscarePlayer = AudioPlayer();
+  
   bool _isFootstepsPlaying = false;
+  bool _isHeartbeatPlaying = false; // Added Heartbeat State
 
   GameModel() {
     _loadBestTime();
@@ -61,6 +64,7 @@ class GameModel extends ChangeNotifier {
   void _initAudio() async {
     await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
     await _footstepsPlayer.setReleaseMode(ReleaseMode.loop);
+    await _heartbeatPlayer.setReleaseMode(ReleaseMode.loop); // Loop the heartbeat
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
   }
 
@@ -69,6 +73,7 @@ class GameModel extends ChangeNotifier {
     _bgmPlayer.dispose();
     _sfxPlayer.dispose();
     _footstepsPlayer.dispose();
+    _heartbeatPlayer.dispose(); // Dispose to prevent memory leaks
     _jumpscarePlayer.dispose();
     super.dispose();
   }
@@ -107,17 +112,16 @@ class GameModel extends ChangeNotifier {
 
     // --- PROXIMITY AUDIO LOGIC ---
     double botDist = (bots[0].position - playerPos).distance;
+    
+    // 1. Footsteps Logic (Outer Radius)
     double hearingThreshold = 300.0; 
-
     if (botDist < hearingThreshold) {
       if (!_isFootstepsPlaying) {
         _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
         _isFootstepsPlaying = true;
       }
-      
       double vol = 1.0 - (botDist / hearingThreshold);
       _footstepsPlayer.setVolume(vol.clamp(0.0, 1.0));
-      
       double rate = 1.0 + (1.0 - (botDist / hearingThreshold));
       _footstepsPlayer.setPlaybackRate(rate.clamp(1.0, 2.0));
     } else {
@@ -127,12 +131,35 @@ class GameModel extends ChangeNotifier {
       }
     }
 
+    // 2. Heartbeat Logic (Critical Inner Radius)
+    double heartbeatThreshold = 150.0;
+    if (botDist < heartbeatThreshold) {
+      if (!_isHeartbeatPlaying) {
+        _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
+        _isHeartbeatPlaying = true;
+      }
+      
+      // Volume scales from 0.0 at the edge (150px) to 1.0 at point-blank (0px)
+      double hbVol = 1.0 - (botDist / heartbeatThreshold);
+      _heartbeatPlayer.setVolume(hbVol.clamp(0.0, 1.0));
+      
+      // Heartbeat playback rate increases dramatically as it gets closer
+      double hbRate = 1.0 + (1.5 * (1.0 - (botDist / heartbeatThreshold)));
+      _heartbeatPlayer.setPlaybackRate(hbRate.clamp(1.0, 2.5));
+    } else {
+      if (_isHeartbeatPlaying) {
+        _heartbeatPlayer.pause();
+        _isHeartbeatPlaying = false;
+      }
+    }
+
     // --- WIN STATE ---
     if ((playerPos - exitPos).distance < exitRadius) {
       if (!isGameWon) {
         isGameWon = true;
         _bgmPlayer.stop();
         _footstepsPlayer.stop();
+        _heartbeatPlayer.stop(); // Stop heartbeat instantly
         _sfxPlayer.play(AssetSource('audio/victory.ogg')); 
         
         if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
@@ -164,6 +191,7 @@ class GameModel extends ChangeNotifier {
           isGameOver = true;
           _bgmPlayer.stop();
           _footstepsPlayer.stop();
+          _heartbeatPlayer.stop(); // Stop heartbeat instantly
           _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
         }
       }
@@ -175,7 +203,7 @@ class GameModel extends ChangeNotifier {
   void emitWave() {
     if (!isGameOver && !isGameWon) {
       waves.add(EchoWave(center: playerPos));
-      _sfxPlayer.play(AssetSource('audio/clap.ogg')); // PING sound
+      _sfxPlayer.play(AssetSource('audio/ping.ogg')); 
     }
   }
 
@@ -189,6 +217,7 @@ class GameModel extends ChangeNotifier {
     bots = [Bot(position: const Offset(200, 250))];
     
     _isFootstepsPlaying = false;
+    _isHeartbeatPlaying = false;
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
     
     notifyListeners();
