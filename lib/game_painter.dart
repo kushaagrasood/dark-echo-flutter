@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math'; // Added for screen shake math
+import 'dart:math'; 
 import 'game_model.dart';
 
 class GamePainter extends CustomPainter {
@@ -25,27 +25,28 @@ class GamePainter extends CustomPainter {
       fearFactor = 1.0 - (minBotDist / 200.0).clamp(0.0, 1.0);
     }
 
-    // 2. Draw Base Background (Always pitch black, drawn before shake to prevent edge clipping)
+    // 2. Draw Base Background
     final bgPaint = Paint()..color = const Color(0xFF050505);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
     // --- START DISTORTION LAYER ---
-    canvas.save(); // Save canvas state before applying transformations
+    canvas.save(); 
 
     // Apply Screen Shake if being chased
     if (isChasing && fearFactor > 0) {
       final random = Random();
-      double shakeIntensity = fearFactor * 4.0; // Max 4 pixels of displacement
+      double shakeIntensity = fearFactor * 4.0; 
       double dx = (random.nextDouble() - 0.5) * 2 * shakeIntensity;
       double dy = (random.nextDouble() - 0.5) * 2 * shakeIntensity;
       canvas.translate(dx, dy);
     }
 
-    // 3. Draw Exit Door
-    final exitPaint = Paint()\r
-      ..color = Colors.greenAccent.withValues(alpha: 0.3)\r
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0)\r
+    // 3. Draw Exit Door (Removed the \r formatting errors)
+    final exitPaint = Paint()
+      ..color = Colors.greenAccent.withValues(alpha: 0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0)
       ..style = PaintingStyle.fill;
+      
     canvas.drawRect(
       Rect.fromCenter(center: model.exitPos, width: model.exitRadius * 2, height: model.exitRadius * 2),
       exitPaint,
@@ -88,22 +89,21 @@ class GamePainter extends CustomPainter {
       final vignettePaint = Paint()
         ..shader = RadialGradient(
           center: Alignment.center,
-          // Radius shrinks as bot gets closer, closing in on the player
           radius: 1.5 - (fearFactor * 0.7), 
           colors: [
             Colors.transparent,
-            Colors.redAccent.withValues(alpha: fearFactor * 0.15), // Faint blood-red tint
-            Colors.black.withValues(alpha: fearFactor * 0.95),     // Crushing darkness at edges
+            Colors.redAccent.withValues(alpha: fearFactor * 0.15), 
+            Colors.black.withValues(alpha: fearFactor * 0.95),     
           ],
           stops: const [0.3, 0.7, 1.0],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-        ..blendMode = BlendMode.srcOver; // Overlays smoothly on top of the glowing walls
+        ..blendMode = BlendMode.srcOver; 
 
       canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), vignettePaint);
     }
 
     // --- END DISTORTION LAYER ---
-    canvas.restore(); // Revert canvas translation so UI/HUD doesn't shake
+    canvas.restore(); 
   }
 
   bool _isWaveHittingSegment(EchoWave wave, Offset p1, Offset p2) {

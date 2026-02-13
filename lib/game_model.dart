@@ -38,6 +38,10 @@ class GameModel extends ChangeNotifier {
   bool isGameOver = false;
   bool isGameWon = false;
   
+  // --- NEW: Cinematic Caught State ---
+  bool isCaught = false; 
+  double caughtTimer = 0.0;
+  
   int elapsedMilliseconds = 0;
   int? bestTimeMilliseconds;
   
@@ -63,6 +67,7 @@ class GameModel extends ChangeNotifier {
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _footstepsPlayer = AudioPlayer();
   final AudioPlayer _heartbeatPlayer = AudioPlayer(); 
+  final AudioPlayer _breathingPlayer = AudioPlayer(); // NEW: Breathing audio player
   final AudioPlayer _jumpscarePlayer = AudioPlayer();
   
   bool _isFootstepsPlaying = false;
@@ -86,6 +91,7 @@ class GameModel extends ChangeNotifier {
     _sfxPlayer.dispose();
     _footstepsPlayer.dispose();
     _heartbeatPlayer.dispose();
+    _breathingPlayer.dispose();
     _jumpscarePlayer.dispose();
     super.dispose();
   }
@@ -103,6 +109,17 @@ class GameModel extends ChangeNotifier {
   
   void update(double dt) {
     if (isGameOver || isGameWon) return; 
+
+    // --- NEW: Handle the 1-second freeze before Game Over ---
+    if (isCaught) {
+      caughtTimer += dt;
+      if (caughtTimer >= 1.0) {
+        isGameOver = true; // Triggers the red UI screen
+        _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
+        notifyListeners();
+      }
+      return; // Freeze ALL physics and AI updates while caught
+    }
 
     elapsedMilliseconds += (dt * 1000).toInt();
 
@@ -199,13 +216,16 @@ class GameModel extends ChangeNotifier {
     for (var bot in bots) {
       _updateBotFSM(bot, dt, botDist);
 
+      // --- NEW: Loss Condition Trigger ---
       if (botDist < 15) {
-        if (!isGameOver) {
-          isGameOver = true;
+        if (!isCaught) {
+          isCaught = true; // Enter the 1-second freeze state
+          _actualVelocity = Offset.zero; // Kill player momentum
+          
           _bgmPlayer.stop();
           _footstepsPlayer.stop();
           _heartbeatPlayer.stop();
-          _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
+          _breathingPlayer.play(AssetSource('audio/breathing.ogg')); // Play the build-up
         }
       }
     }
@@ -214,7 +234,6 @@ class GameModel extends ChangeNotifier {
   }
 
   void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
-    // Determine if bot has a direct, unbroken line of sight to the player
     bool canSeePlayer = distToPlayer <= 200.0 && _hasLineOfSight(bot.position, playerPos);
 
     if (canSeePlayer) { 
@@ -292,7 +311,6 @@ class GameModel extends ChangeNotifier {
         bot.lastHeardPosition = playerPos;
         _moveBot(bot, playerPos, dt, 1.4); 
         
-        // If the player breaks line of sight or gets out of range
         if (!canSeePlayer) { 
           bot.state = BotState.cooldown;
           bot.stateTimer = 3.0;
@@ -325,7 +343,7 @@ class GameModel extends ChangeNotifier {
   }
 
   void emitWave() {
-    if (!isGameOver && !isGameWon) {
+    if (!isGameOver && !isGameWon && !isCaught) {
       waves.add(EchoWave(center: playerPos));
       _sfxPlayer.play(AssetSource('audio/ping.ogg')); 
     }
@@ -335,6 +353,11 @@ class GameModel extends ChangeNotifier {
     playerPos = const Offset(50, 50);
     isGameOver = false;
     isGameWon = false;
+    
+    // --- NEW: Reset Caught State ---
+    isCaught = false;
+    caughtTimer = 0.0;
+    
     elapsedMilliseconds = 0; 
     waves.clear();
     velocity = Offset.zero;
@@ -344,12 +367,12 @@ class GameModel extends ChangeNotifier {
     
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
+    
+    _breathingPlayer.stop(); // Stop breathing in case user resets early
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
     
     notifyListeners();
   }
-
-  // --- MATH & COLLISION HELPERS ---
 
   bool _checkCollision(Offset pos) {
     for (var wall in walls) {
@@ -368,19 +391,17 @@ class GameModel extends ChangeNotifier {
     return (p - Offset(v.dx + t * (w.dx - v.dx), v.dy + t * (w.dy - v.dy))).distance;
   }
 
-  // Casts a ray and checks against all walls
   bool _hasLineOfSight(Offset start, Offset end) {
     for (var wall in walls) {
       for (int i = 0; i < wall.length - 1; i++) {
         if (_doIntersect(start, end, wall[i], wall[i + 1])) {
-          return false; // Vision is blocked by this wall
+          return false; 
         }
       }
     }
-    return true; // Vision is clear
+    return true; 
   }
 
-  // Evaluates intersection between line segment p1q1 and p2q2
   bool _doIntersect(Offset p1, Offset q1, Offset p2, Offset q2) {
     int o1 = _orientation(p1, q1, p2);
     int o2 = _orientation(p1, q1, q2);
@@ -399,8 +420,8 @@ class GameModel extends ChangeNotifier {
 
   int _orientation(Offset p, Offset q, Offset r) {
     double val = (q.dy - p.dy) * (r.dx - q.dx) - (q.dx - p.dx) * (r.dy - q.dy);
-    if (val == 0) return 0; // Collinear
-    return (val > 0) ? 1 : 2; // Clockwise or Counterclockwise
+    if (val == 0) return 0; 
+    return (val > 0) ? 1 : 2; 
   }
 
   bool _onSegment(Offset p, Offset q, Offset r) {
