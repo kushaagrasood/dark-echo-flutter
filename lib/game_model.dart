@@ -93,17 +93,23 @@ class Bot {
   double stateTimer = 0.0;
   
   double facingAngle = 0.0; 
-  Offset? lastSeenPosition;
-  Offset? currentWaypoint; 
-
-  Offset? lastHeardPosition;
+  
+  // APPROXIMATE TRACKING SYSTEM - No perfect omniscience
+  Offset? lastSeenPosition;        // Visual memory (approximate)
+  Offset? lastHeardPosition;       // Audio memory (approximate)
   double lastHeardStrength = 0.0;
-  final double hearingThreshold = 0.15; 
-
-  // Pathfinding
+  final double hearingThreshold = 0.15;
+  
+  // Navigation
+  Offset? currentWaypoint; 
   List<Point<int>> currentPath = [];
   int currentPathIndex = 0;
 
+  // IDLE ROAMING SYSTEM
+  Offset? idleRoamTarget;          // Random roam destination
+  double idlePauseTimer = 0.0;     // Pause between roam movements
+  bool isIdlePaused = false;       // Currently paused in idle
+  
   // Anti-corner trap
   double hesitationTimer = 0.0;
 
@@ -170,6 +176,11 @@ class GameModel extends ChangeNotifier {
   double _currentHeartbeatVolume = 0.0;
   double _currentTensionVolume = 0.0;
   double _currentBgmVolume = 1.0;
+  
+  // Track last set volumes to prevent redundant setVolume() calls
+  double _lastSetHeartbeatVol = 0.0;
+  double _lastSetTensionVol = 0.0;
+  double _lastSetBgmVol = 1.0;
 
   double visualPulseIntensity = 0.0;
   double _pulseTimer = 0.0;
@@ -407,7 +418,7 @@ class GameModel extends ChangeNotifier {
   void _updateAudio(double dt) {
     bool isMoving = _actualVelocity.distance > 5.0;
     
-    // FOOTSTEPS LAYER - never touches BGM
+    // FOOTSTEPS LAYER - State-based control (no per-frame calls)
     if (isMoving && !_isFootstepsPlaying && !isGameOver && !isGameWon) {
       _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
       _isFootstepsPlaying = true;
@@ -428,7 +439,7 @@ class GameModel extends ChangeNotifier {
       if (bot.state == BotState.chasing) anyChasing = true;
     }
 
-    // HEARTBEAT & TENSION LAYERS
+    // HEARTBEAT & TENSION LAYERS - Calculate target volumes
     double targetHeartbeatVol = 0.0;
     double targetTensionVol = 0.0;
     double targetBgmVol = 1.0;
@@ -458,36 +469,61 @@ class GameModel extends ChangeNotifier {
       _pulseTimer = 0.0;
     }
 
-    // SMOOTH VOLUME TRANSITIONS
+    // SMOOTH VOLUME TRANSITIONS (interpolate, but don't set yet)
     double volumeSpeed = 2.0;
     _currentHeartbeatVolume += (targetHeartbeatVol - _currentHeartbeatVolume) * volumeSpeed * dt;
     _currentTensionVolume += (targetTensionVol - _currentTensionVolume) * volumeSpeed * dt;
     _currentBgmVolume += (targetBgmVol - _currentBgmVolume) * volumeSpeed * dt;
 
-    // Apply volumes
-    _heartbeatPlayer.setVolume(_currentHeartbeatVolume.clamp(0.0, 1.0));
-    _tensionPlayer.setVolume(_currentTensionVolume.clamp(0.0, 1.0));
-    _bgmPlayer.setVolume(_currentBgmVolume.clamp(0.0, 1.0));
+    // CRITICAL FIX: Only call setVolume() when volume changes significantly
+    // This prevents audio latency from redundant API calls
+    const double volumeChangeThreshold = 0.02; // 2% change required
+    
+    double heartbeatVol = _currentHeartbeatVolume.clamp(0.0, 1.0);
+    if ((heartbeatVol - _lastSetHeartbeatVol).abs() > volumeChangeThreshold) {
+      _heartbeatPlayer.setVolume(heartbeatVol);
+      _lastSetHeartbeatVol = heartbeatVol;
+    }
+    
+    double tensionVol = _currentTensionVolume.clamp(0.0, 1.0);
+    if ((tensionVol - _lastSetTensionVol).abs() > volumeChangeThreshold) {
+      _tensionPlayer.setVolume(tensionVol);
+      _lastSetTensionVol = tensionVol;
+    }
+    
+    double bgmVol = _currentBgmVolume.clamp(0.0, 1.0);
+    if ((bgmVol - _lastSetBgmVol).abs() > volumeChangeThreshold) {
+      _bgmPlayer.setVolume(bgmVol);
+      _lastSetBgmVol = bgmVol;
+    }
 
-    // Start/stop heartbeat loop
+    // Start/stop heartbeat loop - STATE CHANGE ONLY
     if (targetHeartbeatVol > 0.01 && !_isHeartbeatPlaying) {
       _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
       _isHeartbeatPlaying = true;
-      print('[AUDIO] Started heartbeat loop');
+      // Force volume update on start
+      _heartbeatPlayer.setVolume(heartbeatVol);
+      _lastSetHeartbeatVol = heartbeatVol;
+      print('[AUDIO] Started heartbeat loop at volume ${heartbeatVol.toStringAsFixed(2)}');
     } else if (targetHeartbeatVol <= 0.01 && _isHeartbeatPlaying) {
       _heartbeatPlayer.stop();
       _isHeartbeatPlaying = false;
+      _lastSetHeartbeatVol = 0.0;
       print('[AUDIO] Stopped heartbeat loop');
     }
 
-    // Start/stop tension loop
+    // Start/stop tension loop - STATE CHANGE ONLY
     if (targetTensionVol > 0.01 && !_isTensionPlaying) {
       _tensionPlayer.play(AssetSource('audio/tension.ogg'));
       _isTensionPlaying = true;
-      print('[AUDIO] Started tension loop');
+      // Force volume update on start
+      _tensionPlayer.setVolume(tensionVol);
+      _lastSetTensionVol = tensionVol;
+      print('[AUDIO] Started tension loop at volume ${tensionVol.toStringAsFixed(2)}');
     } else if (targetTensionVol <= 0.01 && _isTensionPlaying) {
       _tensionPlayer.stop();
       _isTensionPlaying = false;
+      _lastSetTensionVol = 0.0;
       print('[AUDIO] Stopped tension loop');
     }
 
@@ -498,6 +534,8 @@ class GameModel extends ChangeNotifier {
   }
 
   void _updateBot(Bot bot, double dt) {
+    final random = Random();
+    
     // === VISION CHECK ===
     bool canSeePlayer = false;
     double distToPlayer = (bot.position - playerPos).distance;
@@ -515,118 +553,203 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // === HEARING CHECK ===
-    for (var wave in waves) {
-      double waveDistToBot = (wave.center - bot.position).distance;
-      if (waveDistToBot < config.hearingRadius) {
-        double strength = 1.0 - (waveDistToBot / config.hearingRadius);
-        if (strength > bot.lastHeardStrength) {
-          bot.lastHeardStrength = strength;
-          bot.lastHeardPosition = wave.center;
+    // === HEARING CHECK (WORKS IN ALL STATES EXCEPT CHASING) ===
+    if (bot.state != BotState.chasing) {
+      for (var wave in waves) {
+        double waveDistToBot = (wave.center - bot.position).distance;
+        if (waveDistToBot < config.hearingRadius) {
+          double strength = 1.0 - (waveDistToBot / config.hearingRadius);
+          if (strength > bot.lastHeardStrength) {
+            bot.lastHeardStrength = strength;
+            // APPROXIMATE TRACKING: Add error to heard position
+            bot.lastHeardPosition = _getApproximatePosition(
+              wave.center, 
+              minError: 20.0, 
+              maxError: 60.0
+            );
+            print('[BOT-HEARING] State: ${bot.state.name}, Heard sound at strength ${strength.toStringAsFixed(2)} (approx position stored)');
+          }
         }
       }
     }
 
-    // === STATE MACHINE ===
-    // CRITICAL: Vision overrides all other states
+    // === VISION OVERRIDE (ALWAYS TAKES PRIORITY) ===
     if (canSeePlayer && bot.state != BotState.chasing) {
       bot.state = BotState.chasing;
-      bot.lastSeenPosition = playerPos;
+      // APPROXIMATE TRACKING: Visual sighting also has slight error
+      bot.lastSeenPosition = _getApproximatePosition(
+        playerPos,
+        minError: 10.0,  // Vision is more accurate than hearing
+        maxError: 30.0
+      );
       bot.currentPath.clear();
-      print('[BOT] Visual contact! Entering CHASING state');
+      print('[BOT-TRANSITION] ${bot.state.name} → CHASING (visual contact - approx position stored)');
     }
 
+    // === STATE MACHINE ===
     switch (bot.state) {
       case BotState.idle:
-        // Check if we heard something strong enough
+        // IDLE ROAMING BEHAVIOR
+        bot.lastHeardStrength *= 0.95; // Decay old sounds
+        
+        // Check if we heard something strong enough to investigate
         if (bot.lastHeardStrength > bot.hearingThreshold) {
           bot.state = BotState.investigating;
           bot.stateTimer = 0.0;
           bot.currentPath.clear();
-          print('[BOT] Sound detected (strength: ${bot.lastHeardStrength}), switching to INVESTIGATING');
-          print('[BOT] Target position: ${bot.lastHeardPosition}');
+          bot.isIdlePaused = false;
+          bot.idlePauseTimer = 0.0;
+          print('[BOT-TRANSITION] IDLE → INVESTIGATING (sound strength: ${bot.lastHeardStrength.toStringAsFixed(2)})');
+          print('[BOT] Approximate target: ${bot.lastHeardPosition}');
+          break;
         }
         
-        bot.lastHeardStrength *= 0.95;
+        // ROAMING LOGIC
+        if (bot.isIdlePaused) {
+          // Currently paused - count down
+          bot.idlePauseTimer -= dt;
+          if (bot.idlePauseTimer <= 0) {
+            bot.isIdlePaused = false;
+            bot.idleRoamTarget = null; // Pick new target next frame
+          }
+        } else {
+          // Should be moving
+          if (bot.idleRoamTarget == null) {
+            // Pick new roam target
+            bot.idleRoamTarget = _getIdleRoamTarget(bot.position);
+            bot.currentPath.clear();
+            print('[BOT-IDLE] Picked new roam target: ${bot.idleRoamTarget}');
+          } else {
+            // Move toward roam target
+            _moveBotWithPathfinding(bot, bot.idleRoamTarget!, dt, 0.4); // Slow roaming
+            
+            // Check if reached target
+            if ((bot.position - bot.idleRoamTarget!).distance < 15.0) {
+              // Reached target - pause for a moment
+              bot.isIdlePaused = true;
+              bot.idlePauseTimer = 1.0 + random.nextDouble() * 2.0; // 1-3 second pause
+              bot.idleRoamTarget = null;
+              print('[BOT-IDLE] Reached roam target, pausing for ${bot.idlePauseTimer.toStringAsFixed(1)}s');
+            }
+          }
+        }
         break;
 
       case BotState.investigating:
+        bot.lastHeardStrength *= 0.98; // Slow decay while investigating
+        
         if (bot.lastHeardPosition != null) {
-          Offset beforePos = bot.position;
-          
-          // CRITICAL FIX: This is where bot movement happens
+          // Move toward APPROXIMATE heard position
           _moveBotWithPathfinding(bot, bot.lastHeardPosition!, dt, 1.0);
           
-          Offset afterPos = bot.position;
-          
-          // Reduced debug logging - only when position actually changes
-          if ((afterPos - beforePos).distance > 0.1) {
-            print('[BOT] Investigating - Moved ${(afterPos - beforePos).distance.toStringAsFixed(2)} units toward ${bot.lastHeardPosition}');
-          }
-          
-          // Check if reached target
-          if ((bot.position - bot.lastHeardPosition!).distance < 10.0) {
+          // Check if reached approximate target
+          if ((bot.position - bot.lastHeardPosition!).distance < 15.0) {
             bot.state = BotState.searching;
-            bot.stateTimer = config.searchDuration; 
-            bot.lastSeenPosition = bot.lastHeardPosition; 
-            bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
+            bot.stateTimer = 3.0 + random.nextDouble() * 2.0; // 3-5 second search
+            bot.lastSeenPosition = bot.lastHeardPosition; // Remember approx location
+            // Search around the approximate position
+            bot.currentWaypoint = _getRandomNearbyPosition(bot.lastHeardPosition!, 40.0);
             bot.lastHeardStrength = 0.0;
             bot.currentPath.clear();
-            print('[BOT] Reached investigation target, switching to SEARCHING');
+            print('[BOT-TRANSITION] INVESTIGATING → SEARCHING (reached approx target, searching for ${bot.stateTimer.toStringAsFixed(1)}s)');
           }
         } else {
+          // No target - return to idle
           bot.state = BotState.idle;
-          print('[BOT] No target, returning to IDLE');
+          bot.lastHeardStrength = 0.0;
+          bot.idleRoamTarget = null;
+          bot.isIdlePaused = false;
+          print('[BOT-TRANSITION] INVESTIGATING → IDLE (no target)');
         }
         break;
 
       case BotState.chasing:
         if (canSeePlayer) {
-          _moveBotWithPathfinding(bot, playerPos, dt, 1.4);
+          // Still chasing - update approximate last seen position periodically
+          if (random.nextDouble() < 0.1) { // 10% chance per frame to update
+            bot.lastSeenPosition = _getApproximatePosition(
+              playerPos,
+              minError: 10.0,
+              maxError: 30.0
+            );
+          }
+          
+          // Move toward current approximate position
+          if (bot.lastSeenPosition != null) {
+            _moveBotWithPathfinding(bot, bot.lastSeenPosition!, dt, 1.4);
+          }
         } else {
-          // Lost sight - move to last known position
+          // Lost sight - move to last approximate known position
           if (bot.lastSeenPosition != null) {
             _moveBotWithPathfinding(bot, bot.lastSeenPosition!, dt, 1.4);
             
-            if ((bot.position - bot.lastSeenPosition!).distance < 10.0) {
+            if ((bot.position - bot.lastSeenPosition!).distance < 15.0) {
               bot.state = BotState.searching;
-              bot.stateTimer = config.searchDuration; 
-              bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 80.0);
+              bot.stateTimer = 3.0 + random.nextDouble() * 2.0; // 3-5 seconds
+              // Search around last approximate position
+              bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 60.0);
               bot.currentPath.clear();
-              print('[BOT] Lost target, entering SEARCHING mode');
+              print('[BOT-TRANSITION] CHASING → SEARCHING (lost visual, reached approx position, searching for ${bot.stateTimer.toStringAsFixed(1)}s)');
             }
+          } else {
+            // No last seen position - enter search mode at current location
+            bot.state = BotState.searching;
+            bot.stateTimer = 3.0 + random.nextDouble() * 2.0;
+            bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
+            bot.currentPath.clear();
+            print('[BOT-TRANSITION] CHASING → SEARCHING (no approx position, searching for ${bot.stateTimer.toStringAsFixed(1)}s)');
           }
         }
         break;
 
       case BotState.searching:
+        bot.lastHeardStrength *= 0.97; // Medium decay while searching
         bot.stateTimer -= dt;
+        
+        // Wander randomly within search radius
         if (bot.currentWaypoint != null) {
           _moveBotWithPathfinding(bot, bot.currentWaypoint!, dt, 0.6);
           
-          if ((bot.position - bot.currentWaypoint!).distance < 10.0) {
+          if ((bot.position - bot.currentWaypoint!).distance < 15.0) {
+            // Reached waypoint - pick a new one around approximate last known position
             if (bot.lastSeenPosition != null) {
-               bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 80.0);
+               bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 70.0);
                bot.currentPath.clear();
+               print('[BOT-SEARCH] Reached waypoint, picking new search point');
             }
           }
         }
         
+        // Timer expired - enter cooldown
         if (bot.stateTimer <= 0) {
           bot.state = BotState.cooldown;
           bot.stateTimer = 3.0; 
           bot.lastSeenPosition = null;
           bot.currentWaypoint = null;
           bot.currentPath.clear();
-          print('[BOT] Search complete, entering COOLDOWN');
+          bot.lastHeardStrength = 0.0;
+          print('[BOT-TRANSITION] SEARCHING → COOLDOWN (timer expired)');
         }
         break;
 
       case BotState.cooldown:
+        bot.lastHeardStrength *= 0.95; // Fast decay during cooldown
         bot.stateTimer -= dt;
+        
+        // Stationary during cooldown - no movement
+        
         if (bot.stateTimer <= 0) {
+          // FULL RESET - return to idle roaming
           bot.state = BotState.idle;
-          print('[BOT] Cooldown complete, returning to IDLE');
+          bot.lastSeenPosition = null;
+          bot.lastHeardPosition = null;
+          bot.lastHeardStrength = 0.0;
+          bot.currentWaypoint = null;
+          bot.currentPath.clear();
+          bot.idleRoamTarget = null;     // Will pick new target in idle
+          bot.isIdlePaused = false;
+          bot.idlePauseTimer = 0.0;
+          print('[BOT-TRANSITION] COOLDOWN → IDLE (fully reset, resuming roam patrol)');
         }
         break;
     }
@@ -713,6 +836,58 @@ class GameModel extends ChangeNotifier {
     return center + Offset(r * cos(angle), r * sin(angle));
   }
 
+  // APPROXIMATE TRACKING - Adds natural inaccuracy to bot perception
+  Offset _getApproximatePosition(Offset exactPos, {double minError = 20.0, double maxError = 60.0}) {
+    final random = Random();
+    double errorRadius = minError + random.nextDouble() * (maxError - minError);
+    double angle = random.nextDouble() * 2 * pi;
+    
+    Offset approxPos = exactPos + Offset(
+      errorRadius * cos(angle),
+      errorRadius * sin(angle),
+    );
+    
+    // Clamp to maze bounds to prevent targeting outside map
+    approxPos = Offset(
+      approxPos.dx.clamp(
+        mazeOffset.dx, 
+        mazeOffset.dx + config.gridWidth * config.mazeCellSize
+      ),
+      approxPos.dy.clamp(
+        mazeOffset.dy,
+        mazeOffset.dy + config.gridHeight * config.mazeCellSize
+      ),
+    );
+    
+    return approxPos;
+  }
+
+  // IDLE ROAMING - Picks random reachable maze cell
+  Offset _getIdleRoamTarget(Offset currentPos) {
+    final random = Random();
+    
+    // Pick random cell within 3-5 cells of current position
+    Point<int> currentCell = _offsetToCell(currentPos);
+    int maxDistance = 3 + random.nextInt(3); // 3-5 cells
+    
+    Point<int> targetCell;
+    int attempts = 0;
+    
+    do {
+      int dx = random.nextInt(maxDistance * 2 + 1) - maxDistance;
+      int dy = random.nextInt(maxDistance * 2 + 1) - maxDistance;
+      
+      targetCell = Point(
+        (currentCell.x + dx).clamp(0, config.gridWidth - 1),
+        (currentCell.y + dy).clamp(0, config.gridHeight - 1),
+      );
+      
+      attempts++;
+    } while (attempts < 10 && targetCell == currentCell);
+    
+    return _cellToOffset(targetCell);
+  }
+
   void emitWave() {
     if (!isGameOver && !isGameWon && !isCaught && currentEchoCharges > 0) {
       waves.add(EchoWave(center: playerPos));
@@ -750,6 +925,9 @@ class GameModel extends ChangeNotifier {
     _currentHeartbeatVolume = 0.0;
     _currentTensionVolume = 0.0;
     _currentBgmVolume = 1.0;
+    _lastSetHeartbeatVol = 0.0;
+    _lastSetTensionVol = 0.0;
+    _lastSetBgmVol = 1.0;
     
     // Stop all layered audio
     _footstepsPlayer.stop();
