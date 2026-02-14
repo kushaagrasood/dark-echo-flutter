@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_joystick/flutter_joystick.dart';
-import 'package:google_fonts/google_fonts.dart'; // Added Google Fonts
+import 'package:google_fonts/google_fonts.dart';
 import 'game_model.dart';
 import 'game_painter.dart';
+import 'main_menu.dart';
 
 class GamePage extends StatefulWidget {
   const GamePage({super.key});
@@ -21,10 +23,22 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    
+    // Force landscape orientation
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    
     _model = GameModel();
     
     _model.addListener(() {
       setState(() {});
+      
+      // Reset joystick when game ends
+      if (_model.isGameOver || _model.isGameWon) {
+        _joystickVelocity = Offset.zero;
+      }
     });
 
     _ticker = createTicker((Duration elapsed) {
@@ -40,9 +54,79 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    // Reset orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    
     _ticker.dispose();
     _model.dispose();
     super.dispose();
+  }
+
+  void _showDifficultyMenu() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0A0A0A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+          side: const BorderSide(color: Colors.white24, width: 2),
+        ),
+        title: Text(
+          '[ SELECT DIFFICULTY ]',
+          style: GoogleFonts.vt323(
+            textStyle: const TextStyle(color: Colors.white, fontSize: 28),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDifficultyButton('EASY', Difficulty.easy, Colors.greenAccent),
+            const SizedBox(height: 10),
+            _buildDifficultyButton('MEDIUM', Difficulty.medium, Colors.yellowAccent),
+            const SizedBox(height: 10),
+            _buildDifficultyButton('HARD', Difficulty.hard, Colors.redAccent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDifficultyButton(String label, Difficulty difficulty, Color color) {
+    bool isSelected = _model.currentDifficulty == difficulty;
+    
+    return GestureDetector(
+      onTap: () {
+        _model.changeDifficulty(difficulty);
+        Navigator.pop(context);
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? color : Colors.white24,
+            width: isSelected ? 3 : 1,
+          ),
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.transparent,
+        ),
+        child: Text(
+          isSelected ? '> $label <' : label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.vt323(
+            textStyle: TextStyle(
+              color: isSelected ? color : Colors.white54,
+              fontSize: 24,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -58,36 +142,111 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
           ),
 
-          // 2. Live Timer HUD (Now using VT323)
-          Positioned(
-            top: 60,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                "${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s",
-                style: GoogleFonts.vt323(
-                  textStyle: const TextStyle(
-                    color: Colors.white54, 
-                    fontSize: 32, 
-                    fontWeight: FontWeight.bold, 
-                    letterSpacing: 4
-                  )
+          // 2. Difficulty Selector (Top-left)
+          if (!_model.isGameOver && !_model.isGameWon)
+            Positioned(
+              top: 20,
+              left: 20,
+              child: GestureDetector(
+                onTap: _showDifficultyMenu,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24, width: 1),
+                    color: Colors.black.withValues(alpha: 0.6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.settings,
+                        color: Colors.white54,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _model.currentDifficulty.name.toUpperCase(),
+                        style: GoogleFonts.vt323(
+                          textStyle: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // 3. Controls Layer
+          // 3. Live Timer HUD (Top-center)
+          if (!_model.isGameOver && !_model.isGameWon)
+            Positioned(
+              top: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(
+                  "${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s",
+                  style: GoogleFonts.vt323(
+                    textStyle: const TextStyle(
+                      color: Colors.white54, 
+                      fontSize: 32, 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: 4
+                    )
+                  ),
+                ),
+              ),
+            ),
+
+          // 4. Echo Charges Indicator (Top-right)
+          if (!_model.isGameOver && !_model.isGameWon)
+            Positioned(
+              top: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5), width: 1),
+                  color: Colors.black.withValues(alpha: 0.6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.circle,
+                      color: Colors.cyanAccent,
+                      size: 12,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'PINGS: ${_model.currentEchoCharges}',
+                      style: GoogleFonts.vt323(
+                        textStyle: const TextStyle(
+                          color: Colors.cyanAccent,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // 5. Controls Layer
           if (!_model.isGameOver && !_model.isGameWon) ...[
             Positioned(
               bottom: 40,
               left: 40,
-              child: Joystick(
-                mode: JoystickMode.all,
-                listener: (details) {
-                  _joystickVelocity = Offset(details.x, details.y);
-                },
+              child: Opacity(
+                opacity: 0.4, // Reduced opacity to 40%
+                child: Joystick(
+                  mode: JoystickMode.all,
+                  listener: (details) {
+                    _joystickVelocity = Offset(details.x, details.y);
+                  },
+                ),
               ),
             ),
             Positioned(
@@ -113,7 +272,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                     ]
                   ),
                   child: Center(
-                    child: Text("[PING]", style: GoogleFonts.vt323( // VT323 Font applied
+                    child: Text("[PING]", style: GoogleFonts.vt323(
                       textStyle: const TextStyle(
                         color: Colors.white, 
                         fontWeight: FontWeight.bold,
@@ -126,7 +285,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
           ],
 
-          // 4. HORROR Game Over Overlay (Loss)
+          // 6. HORROR Game Over Overlay (Loss)
           if (_model.isGameOver)
             Container(
               decoration: BoxDecoration(
@@ -150,7 +309,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                           letterSpacing: 10,
                           shadows: [
                             Shadow(color: Colors.red, blurRadius: 20, offset: Offset(0, 0)),
-                            Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-2, 2)), // Glitch effect
+                            Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-2, 2)),
                           ]
                         )
                       )
@@ -162,25 +321,49 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                       )
                     ),
                     const SizedBox(height: 50),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent, 
-                        foregroundColor: Colors.redAccent,
-                        side: const BorderSide(color: Colors.redAccent, width: 2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)), // Sharp edges for terminal look
-                      ),
-                      onPressed: () => _model.resetGame(),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        child: Text("[ REBOOT SYSTEM ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 28))),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent, 
+                            foregroundColor: Colors.white54,
+                            side: const BorderSide(color: Colors.white54, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                          ),
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const MainMenu()),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ BACK ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent, 
+                            foregroundColor: Colors.redAccent,
+                            side: const BorderSide(color: Colors.redAccent, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                          ),
+                          onPressed: () => _model.resetGame(),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ REBOOT SYSTEM ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 28))),
+                          ),
+                        ),
+                      ],
                     )
                   ],
                 ),
               ),
             ),
 
-          // 5. Cinematic You Escaped Overlay (Win)
+          // 7. Cinematic You Escaped Overlay (Win)
           if (_model.isGameWon)
             Container(
               color: Colors.black.withValues(alpha: 0.9),
@@ -210,18 +393,42 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                         style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24, color: Colors.white54))
                       ),
                     const SizedBox(height: 40),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent, 
-                        foregroundColor: Colors.greenAccent,
-                        side: const BorderSide(color: Colors.greenAccent, width: 2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                      ),
-                      onPressed: () => _model.resetGame(),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        child: Text("[ INITIATE NEXT SEQUENCE ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent, 
+                            foregroundColor: Colors.white54,
+                            side: const BorderSide(color: Colors.white54, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                          ),
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const MainMenu()),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ BACK ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent, 
+                            foregroundColor: Colors.greenAccent,
+                            side: const BorderSide(color: Colors.greenAccent, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                          ),
+                          onPressed: () => _model.resetGame(),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ INITIATE NEXT SEQUENCE ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
+                          ),
+                        ),
+                      ],
                     )
                   ],
                 ),
