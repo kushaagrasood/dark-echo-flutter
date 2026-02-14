@@ -103,8 +103,8 @@ Game supports full pause with state preservation. Audio pauses cleanly, BGM duck
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/kushaagrasood/dark-echo.git
-cd dark-echo
+git clone https://github.com/kushaagrasood/dark-echo-flutter.git
+cd dark-echo-flutter
 
 # Install dependencies
 flutter pub get
