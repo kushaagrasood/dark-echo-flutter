@@ -84,6 +84,14 @@ class EchoWave {
 
 enum BotState { idle, investigating, searching, chasing, cooldown }
 
+// GAME PHASE SYSTEM - Controls high-level game state
+enum GamePhase { 
+  playing,        // Normal gameplay
+  deathSequence,  // Player caught, playing death animation
+  gameOver,       // Death complete, showing game over screen
+  gameWon         // Player escaped, showing victory screen
+}
+
 class Bot {
   Offset position;
   double opacity;
@@ -127,11 +135,13 @@ class GameModel extends ChangeNotifier {
   late Offset playerPos;
   final double playerRadius = 8.0;
   
-  bool isGameOver = false;
-  bool isGameWon = false;
+  // GAME PHASE SYSTEM (replaces individual bool flags)
+  GamePhase currentPhase = GamePhase.playing;
   
-  bool isCaught = false; 
-  double caughtTimer = 0.0;
+  // Death sequence tracking
+  double deathTimer = 0.0;
+  bool _breathingPlayed = false;
+  bool _jumpscarePlayed = false;
   
   int elapsedMilliseconds = 0;
   int? bestTimeMilliseconds;
@@ -280,11 +290,29 @@ class GameModel extends ChangeNotifier {
   }
 
   void update(double dt) {
-    if (isGameOver || isGameWon) {
-      _updateAudio(dt);
-      return;
+    // ========================================
+    // PHASE 1: DEATH SEQUENCE (Highest Priority)
+    // ========================================
+    if (currentPhase == GamePhase.deathSequence) {
+      _handleDeathSequence(dt);
+      _updateAudio(dt); // Keep audio running during death
+      notifyListeners();
+      return; // Exit early - no other logic runs
     }
 
+    // ========================================
+    // PHASE 2: GAME OVER / GAME WON
+    // ========================================
+    if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.gameWon) {
+      _updateAudio(dt); // Minimal audio updates
+      notifyListeners();
+      return; // Exit early - game ended
+    }
+
+    // ========================================
+    // PHASE 3: NORMAL GAMEPLAY
+    // ========================================
+    
     elapsedMilliseconds += (dt * 1000).round();
 
     // === PLAYER MOVEMENT ===
@@ -356,45 +384,25 @@ class GameModel extends ChangeNotifier {
       wallRevealTimers.remove(idx);
     }
 
-    // === BOT AI ===
+    // === BOT AI (Only in playing phase) ===
     for (var bot in bots) {
       _updateBot(bot, dt);
     }
 
-    // === COLLISION DETECTION ===
+    // === COLLISION DETECTION (Triggers Death Sequence) ===
     for (var bot in bots) {
-      if ((bot.position - playerPos).distance < 15.0 && !isCaught) {
-        isCaught = true;
-        caughtTimer = 1.2;
-        _jumpscarePlayer.play(AssetSource('audio/jumpscare.ogg'));
-        print('[GAME] Player caught! Jumpscare triggered.');
+      if ((bot.position - playerPos).distance < 15.0) {
+        _triggerDeathSequence();
+        notifyListeners();
+        return; // Exit immediately after death trigger
       }
     }
 
-    if (isCaught) {
-      caughtTimer -= dt;
-      if (caughtTimer <= 0) {
-        isGameOver = true;
-        _bgmPlayer.stop();
-        _heartbeatPlayer.stop();
-        _footstepsPlayer.stop();
-        _tensionPlayer.stop();
-        _sfxPlayer.play(AssetSource('audio/death_scream.ogg'));
-      }
-    }
-
-    // === VICTORY ===
+    // === VICTORY CHECK ===
     if ((playerPos - exitPos).distance < exitRadius) {
-      isGameWon = true;
-      _bgmPlayer.stop();
-      _heartbeatPlayer.stop();
-      _footstepsPlayer.stop();
-      _tensionPlayer.stop();
-      _sfxPlayer.play(AssetSource('audio/victory.ogg'));
-
-      if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
-        _saveBestTime(elapsedMilliseconds);
-      }
+      _triggerVictory();
+      notifyListeners();
+      return; // Exit immediately after victory
     }
 
     // === AUDIO UPDATE ===
@@ -402,6 +410,106 @@ class GameModel extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  // ========================================
+  // DEATH SEQUENCE HANDLER
+  // ========================================
+  void _handleDeathSequence(double dt) {
+    deathTimer += dt;
+
+    // Freeze player movement
+    velocity = Offset.zero;
+    _actualVelocity = Offset.zero;
+
+    // Stage 1: Play breathing sound immediately (0.0s) - LOUDLY
+    if (deathTimer >= 0.0 && !_breathingPlayed) {
+      _breathingPlayer.setVolume(1.0); // Full volume for breathing
+      _breathingPlayer.play(AssetSource('audio/breathing.ogg'));
+      _breathingPlayed = true;
+      print('[DEATH] Breathing sound played (LOUD)');
+    }
+
+    // Stage 2: Play caught.ogg and transition to game over at 1.0s
+    if (deathTimer >= 1.0 && !_jumpscarePlayed) {
+      // Play caught.ogg
+      _jumpscarePlayer.play(AssetSource('audio/caught.ogg'));
+      _jumpscarePlayed = true;
+      print('[DEATH] Caught sound played');
+      
+      // Immediately transition to game over and show SIGNAL LOST screen
+      currentPhase = GamePhase.gameOver;
+      
+      // Stop all looping audio
+      _bgmPlayer.stop();
+      _heartbeatPlayer.stop();
+      _footstepsPlayer.stop();
+      _tensionPlayer.stop();
+      
+      print('[DEATH] Transitioned to GAME OVER (SIGNAL LOST)');
+    }
+  }
+
+  // ========================================
+  // DEATH SEQUENCE TRIGGER
+  // ========================================
+  void _triggerDeathSequence() {
+    if (currentPhase != GamePhase.playing) return; // Already triggered
+    
+    print('[DEATH] Player caught! Starting death sequence...');
+    
+    // Switch to death phase
+    currentPhase = GamePhase.deathSequence;
+    deathTimer = 0.0;
+    _breathingPlayed = false;
+    _jumpscarePlayed = false;
+    
+    // Freeze player immediately
+    velocity = Offset.zero;
+    _actualVelocity = Offset.zero;
+    
+    // Stop all gameplay audio immediately
+    if (_isFootstepsPlaying) {
+      _footstepsPlayer.stop();
+      _isFootstepsPlaying = false;
+    }
+    if (_isHeartbeatPlaying) {
+      _heartbeatPlayer.stop();
+      _isHeartbeatPlaying = false;
+    }
+    if (_isTensionPlaying) {
+      _tensionPlayer.stop();
+      _isTensionPlaying = false;
+    }
+    
+    // Duck BGM volume for dramatic effect
+    _bgmPlayer.setVolume(0.2);
+  }
+
+  // ========================================
+  // VICTORY TRIGGER
+  // ========================================
+  void _triggerVictory() {
+    if (currentPhase != GamePhase.playing) return; // Already triggered
+    
+    print('[VICTORY] Player reached exit!');
+    
+    currentPhase = GamePhase.gameWon;
+    
+    // Stop all audio
+    _bgmPlayer.stop();
+    _heartbeatPlayer.stop();
+    _footstepsPlayer.stop();
+    _tensionPlayer.stop();
+    
+    // Play victory sound
+    _sfxPlayer.play(AssetSource('audio/victory.ogg'));
+
+    if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
+      _saveBestTime(elapsedMilliseconds);
+    }
+  }
+
+  
 
   Offset _approachVelocity(Offset current, Offset target, double rate, double dt) {
     Offset delta = target - current;
@@ -416,10 +524,33 @@ class GameModel extends ChangeNotifier {
   }
 
   void _updateAudio(double dt) {
+    // During death sequence, mute all audio except death sounds
+    if (currentPhase == GamePhase.deathSequence) {
+      // Gradually fade out all gameplay audio
+      if (_isFootstepsPlaying) {
+        _footstepsPlayer.stop();
+        _isFootstepsPlaying = false;
+      }
+      if (_isHeartbeatPlaying) {
+        _heartbeatPlayer.stop();
+        _isHeartbeatPlaying = false;
+      }
+      if (_isTensionPlaying) {
+        _tensionPlayer.stop();
+        _isTensionPlaying = false;
+      }
+      return; // No other audio processing during death
+    }
+
+    // Skip audio processing if game is over
+    if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.gameWon) {
+      return;
+    }
+
     bool isMoving = _actualVelocity.distance > 5.0;
     
     // FOOTSTEPS LAYER - State-based control (no per-frame calls)
-    if (isMoving && !_isFootstepsPlaying && !isGameOver && !isGameWon) {
+    if (isMoving && !_isFootstepsPlaying) {
       _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
       _isFootstepsPlaying = true;
       print('[AUDIO] Started footsteps loop');
@@ -889,7 +1020,7 @@ class GameModel extends ChangeNotifier {
   }
 
   void emitWave() {
-    if (!isGameOver && !isGameWon && !isCaught && currentEchoCharges > 0) {
+    if (currentPhase == GamePhase.playing && currentEchoCharges > 0) {
       waves.add(EchoWave(center: playerPos));
       _sfxPlayer.play(AssetSource('audio/ping.ogg')); 
       currentEchoCharges--;
@@ -897,11 +1028,13 @@ class GameModel extends ChangeNotifier {
   }
 
   void resetGame() {
-    isGameOver = false;
-    isGameWon = false;
+    // Reset game phase
+    currentPhase = GamePhase.playing;
     
-    isCaught = false;
-    caughtTimer = 0.0;
+    // Reset death sequence state
+    deathTimer = 0.0;
+    _breathingPlayed = false;
+    _jumpscarePlayed = false;
     
     elapsedMilliseconds = 0; 
     waves.clear();

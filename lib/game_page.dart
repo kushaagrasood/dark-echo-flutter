@@ -34,7 +34,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     _model.addListener(() {
       setState(() {});
       
-      if (_model.isGameOver || _model.isGameWon) {
+      if (_model.currentPhase != GamePhase.playing) {
         _inputVelocity = Offset.zero;
       }
     });
@@ -142,7 +142,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
 
           // 2. HUD Layer (Does NOT block canvas)
           // Difficulty Selector (Top-left)
-          if (!_model.isGameOver && !_model.isGameWon)
+          if (_model.currentPhase == GamePhase.playing)
             Positioned(
               top: 20,
               left: 20,
@@ -179,7 +179,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
 
           // Timer (Top-center)
-          if (!_model.isGameOver && !_model.isGameWon)
+          if (_model.currentPhase == GamePhase.playing)
             Positioned(
               top: 20,
               left: 0,
@@ -202,7 +202,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
 
           // Echo Charges (Top-right)
-          if (!_model.isGameOver && !_model.isGameWon)
+          if (_model.currentPhase == GamePhase.playing)
             Positioned(
               top: 20,
               right: 20,
@@ -244,7 +244,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
 
           // 3. CONTROLS LAYER - constrained to specific areas
           // Arrow Controls (Bottom-left)
-          if (!_model.isGameOver && !_model.isGameWon)
+          if (_model.currentPhase == GamePhase.playing)
             Positioned(
               bottom: 20,
               left: 20,
@@ -258,7 +258,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
 
           // Ping Button (Bottom-right)
-          if (!_model.isGameOver && !_model.isGameWon)
+          if (_model.currentPhase == GamePhase.playing)
             Positioned(
               bottom: 40,
               right: 40,
@@ -296,7 +296,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
 
           // 4. OVERLAY LAYERS (Full-screen when active)
           // Game Over Screen
-          if (_model.isGameOver)
+          if (_model.currentPhase == GamePhase.gameOver)
             Container(
               decoration: BoxDecoration(
                 color: Colors.black,
@@ -374,7 +374,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
 
           // Victory Screen
-          if (_model.isGameWon)
+          if (_model.currentPhase == GamePhase.gameWon)
             Container(
               color: Colors.black.withValues(alpha: 0.9),
               child: Center(
