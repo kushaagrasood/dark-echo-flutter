@@ -49,154 +49,175 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
     );
 
     _startTypingAnimation();
-    
-    // Blinking cursor
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (mounted) setState(() => _showCursor = !_showCursor);
-    });
+    _startCursorBlink();
+  }
 
-    // Random flicker effect
-    Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (mounted && Random().nextDouble() > 0.5) {
-        _flickerController.forward(from: 0).then((_) => _flickerController.reverse());
-      }
-    });
+  Future<void> _checkFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool? firstTime = prefs.getBool('first_time');
+    if (firstTime == null || firstTime) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showTutorial(context);
+        prefs.setBool('first_time', false);
+      });
+    }
   }
 
   void _startTypingAnimation() {
-    int index = 0;
+    int currentIndex = 0;
     _typingTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
-      if (index < _fullTitle.length) {
+      if (currentIndex < _fullTitle.length) {
         setState(() {
-          _displayedTitle = _fullTitle.substring(0, index + 1);
+          _displayedTitle = _fullTitle.substring(0, currentIndex + 1);
         });
-        index++;
+        currentIndex++;
       } else {
         timer.cancel();
       }
     });
   }
 
-  Future<void> _checkFirstTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool? hasPlayedBefore = prefs.getBool('has_played_before');
-    
-    if (hasPlayedBefore == null || !hasPlayedBefore) {
-      setState(() { _isFirstTime = true; });
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        if (mounted) _showFirstTimeGuide();
+  void _startCursorBlink() {
+    _cursorTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      setState(() {
+        _showCursor = !_showCursor;
       });
-      await prefs.setBool('has_played_before', true);
-    } else {
-      setState(() { _isFirstTime = false; });
+    });
+  }
+
+  void _randomFlicker() {
+    if (Random().nextDouble() < 0.05) {
+      _flickerController.forward().then((_) {
+        _flickerController.reverse();
+      });
     }
   }
 
   @override
   void dispose() {
-    _menuPlayer.dispose();
-    _pulseController.dispose();
-    _flickerController.dispose();
     _typingTimer?.cancel();
     _cursorTimer?.cancel();
+    _pulseController.dispose();
+    _flickerController.dispose();
+    _menuPlayer.dispose();
     super.dispose();
   }
 
-  void _showFirstTimeGuide() {
+  void _showTutorial(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _buildTerminalDialog(
-        title: '[ FIRST TRANSMISSION ]',
-        children: [
-          _buildTerminalText('> Welcome, operator.\n'),
-          _buildTerminalText('> This is your first time accessing the system.\n'),
-          _buildTerminalText('> We recommend reviewing the DATABASE for mission briefing and controls.\n', color: Colors.greenAccent),
-          const SizedBox(height: 20),
-          _buildTerminalText('> Access [DATABASE] from the main menu for complete intel.\n', isItalic: true),
-        ],
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showDatabase(context);
-            },
-            child: Text('[ OPEN DATABASE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 20))),
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF0A0A0F),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(maxWidth: 500),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF4DF3FF), width: 2),
+            color: const Color(0xFF0A0A0F),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('[ SKIP ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white54, fontSize: 20))),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('[ FIRST-TIME INITIALIZATION ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold))),
+              const SizedBox(height: 16),
+              _buildTerminalText('> WELCOME TO DARK ECHO.\\n', color: Colors.greenAccent),
+              _buildTerminalText('> We recommend reviewing the DATABASE for mission briefing and controls.\\n', color: Colors.greenAccent),
+              const SizedBox(height: 8),
+              _buildTerminalText('> Access [DATABASE] from the main menu for complete intel.\\n', isItalic: true),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(border: Border.all(color: const Color(0xFF4DF3FF))),
+                    child: Text('[ OPEN DATABASE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 20))),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    );
+    ).then((_) => _showDatabase(context));
   }
 
   void _showDatabase(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => _buildTerminalDialog(
-        title: '[ DATABASE ACCESS ]',
-        children: [
-          _buildDatabaseSection('MISSION BRIEFING:', [
-            '> Navigate through procedurally generated mazes',
-            '> Locate the GREEN EXIT to complete extraction',
-            '> Avoid detection by hostile entities',
-            '> Time is being monitored',
-          ]),
-          const SizedBox(height: 15),
-          _buildDatabaseSection('CONTROLS:', [
-            '> ARROW KEYS: Movement control',
-            '> RIGHT BUTTON [PING]: Emit sonar wave',
-            '> PING reveals walls temporarily',
-            '> Limited PING charges per mission',
-          ]),
-          const SizedBox(height: 15),
-          _buildDatabaseSection('THREAT ASSESSMENT:', [
-            '> RED entities are hostile',
-            '> They respond to sound (PINGs)',
-            '> They have limited vision range',
-            '> Contact means mission failure',
-          ]),
-          const SizedBox(height: 15),
-          _buildDatabaseSection('AUDIO INDICATORS:', [
-            '> Footsteps: Enemy proximity warning',
-            '> Heartbeat: Danger level indicator',
-            '> Faster = Closer threat',
-          ]),
-          const SizedBox(height: 15),
-          _buildDatabaseSection('DIFFICULTY MODES:', [
-            '> EASY: Slower enemies, more PINGs',
-            '> MEDIUM: Balanced challenge',
-            '> HARD: Fast enemies, limited PINGs',
-          ]),
-        ],
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('[ CLOSE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white54, fontSize: 24))),
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF0A0A0F),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF4DF3FF), width: 2),
+            color: const Color(0xFF0A0A0F),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTerminalDialog({required String title, required List<Widget> children, required List<Widget> actions}) {
-    return AlertDialog(
-      backgroundColor: const Color(0xFF0A0A0A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.zero,
-        side: BorderSide(color: Colors.white24, width: 2),
-      ),
-      title: Text(title, style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white, fontSize: 28))),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('[ DATABASE ACCESS ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold))),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDatabaseSection('OBJECTIVE', [
+                        '• Navigate the maze to reach the exit',
+                        '• Use echolocation to reveal your surroundings',
+                        '• Avoid enemy patrols'
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildDatabaseSection('CONTROLS', [
+                        '• Arrow Keys: Move in 4 directions',
+                        '• Ping Button: Emit sound wave',
+                        '• Diagonal movement: Press 2 arrows simultaneously'
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildDatabaseSection('ECHO SYSTEM', [
+                        '• Sound waves reveal walls temporarily',
+                        '• Limited charges - use strategically',
+                        '• Charges regenerate slowly'
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildDatabaseSection('ENEMY AI', [
+                        '• Enemies patrol the maze',
+                        '• They hear your pings',
+                        '• Approximate tracking - not omniscient',
+                        '• Use decoy pings to mislead them'
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildDatabaseSection('AUDIO CUES', [
+                        '• Heartbeat: Enemy proximity',
+                        '• Footsteps: Your movement',
+                        '• Tension layer: Chase sequences'
+                      ]),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(border: Border.all(color: const Color(0xFF4DF3FF))),
+                    child: Text('[ CLOSE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 20))),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      actions: actions,
     );
   }
 
@@ -217,22 +238,8 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen dimensions
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    
-    // Proportional sizing - EVERYTHING scales
-    final titleFontSize = screenWidth * 0.09;
-    final subtitleFontSize = screenWidth * 0.024;
-    final menuFontSize = screenWidth * 0.045;
-    final footerFontSize = screenWidth * 0.022;
-    
-    // Proportional spacing - scales with screen height
-    final titleGap = screenHeight * 0.01;
-    final sectionGap = screenHeight * 0.08;
-    final menuItemGap = screenHeight * 0.02;
-    final footerPadding = screenHeight * 0.025;
-    
+    _randomFlicker();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
       body: SafeArea(
@@ -267,13 +274,13 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
               },
             ),
 
-            // 4. Main Content - NO SCROLL, everything fits
+            // 4. Main Content - FIXED LAYOUT (~240px total, fits landscape)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Animated Title
+                  // Animated Title - 40px font
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -283,43 +290,39 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                           return Text(
                             _displayedTitle,
                             style: GoogleFonts.vt323(
-                              textStyle: TextStyle(
-                                fontSize: titleFontSize,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: screenWidth * 0.015,
-                                shadows: [
-                                  Shadow(
-                                    color: const Color(0xFF4DF3FF).withValues(
-                                      alpha: 0.5 + (_pulseController.value * 0.3)
-                                    ),
-                                    blurRadius: 15 + (_pulseController.value * 10),
+                              fontSize: 40,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 6,
+                              shadows: [
+                                Shadow(
+                                  color: const Color(0xFF4DF3FF).withValues(
+                                    alpha: 0.5 + (_pulseController.value * 0.3)
                                   ),
-                                  const Shadow(
-                                    color: Colors.white70,
-                                    blurRadius: 2,
-                                    offset: Offset(-1, 1),
-                                  ),
-                                ],
-                              ),
+                                  blurRadius: 15 + (_pulseController.value * 10),
+                                ),
+                                const Shadow(
+                                  color: Colors.white70,
+                                  blurRadius: 2,
+                                  offset: Offset(-1, 1),
+                                ),
+                              ],
                             ),
                           );
                         },
                       ),
                       // Cursor
                       SizedBox(
-                        width: titleFontSize * 0.5,
+                        width: 20,
                         child: AnimatedOpacity(
                           opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
                           duration: const Duration(milliseconds: 100),
                           child: Text(
                             "_",
                             style: GoogleFonts.vt323(
-                              textStyle: TextStyle(
-                                fontSize: titleFontSize,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              fontSize: 40,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -327,25 +330,23 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                     ],
                   ),
                   
-                  SizedBox(height: titleGap),
+                  const SizedBox(height: 4),
                   
+                  // Subtitle - 13px font
                   Text(
                     "> ECHO LOCATION PROTOCOL v2.1",
                     style: GoogleFonts.vt323(
-                      textStyle: TextStyle(
-                        fontSize: subtitleFontSize,
-                        color: Colors.white38,
-                        letterSpacing: 4,
-                      ),
+                      fontSize: 13,
+                      color: Colors.white38,
+                      letterSpacing: 2,
                     ),
                   ),
                   
-                  SizedBox(height: sectionGap),
+                  const SizedBox(height: 30),
                   
-                  // Menu Items
+                  // Menu Items - 20px font
                   _TerminalMenuItem(
                     text: 'INITIALIZE',
-                    fontSize: menuFontSize,
                     onTap: () {
                       _menuPlayer.stop();
                       Navigator.pushReplacement(
@@ -355,19 +356,17 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                     },
                   ),
                   
-                  SizedBox(height: menuItemGap),
+                  const SizedBox(height: 10),
                   
                   _TerminalMenuItem(
                     text: 'DATABASE',
-                    fontSize: menuFontSize,
                     onTap: () => _showDatabase(context),
                   ),
                   
-                  SizedBox(height: menuItemGap),
+                  const SizedBox(height: 10),
                   
                   _TerminalMenuItem(
                     text: 'CREDITS',
-                    fontSize: menuFontSize,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -379,11 +378,11 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
               ),
             ),
             
-            // 5. Footer - anchored bottom, no overlap
+            // 5. Footer - 11px font
             Positioned(
-              left: footerPadding,
-              right: footerPadding,
-              bottom: footerPadding,
+              left: 10,
+              right: 10,
+              bottom: 10,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -395,18 +394,16 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                         return Text(
                           "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
                           style: GoogleFonts.vt323(
-                            textStyle: TextStyle(
-                              color: const Color(0xFF4DF3FF).withValues(
-                                alpha: 0.7 + (_pulseController.value * 0.3)
-                              ),
-                              fontSize: footerFontSize,
-                              shadows: [
-                                Shadow(
-                                  color: const Color(0xFF4DF3FF).withValues(alpha: 0.5),
-                                  blurRadius: 8,
-                                )
-                              ],
+                            fontSize: 11,
+                            color: const Color(0xFF4DF3FF).withValues(
+                              alpha: 0.7 + (_pulseController.value * 0.3)
                             ),
+                            shadows: [
+                              Shadow(
+                                color: const Color(0xFF4DF3FF).withValues(alpha: 0.5),
+                                blurRadius: 8,
+                              )
+                            ],
                           ),
                           overflow: TextOverflow.ellipsis,
                         );
@@ -418,12 +415,9 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   Flexible(
                     child: Text(
                       "> auth: operator_01_",
-                      textAlign: TextAlign.end,
                       style: GoogleFonts.vt323(
-                        textStyle: TextStyle(
-                          color: Colors.white38,
-                          fontSize: footerFontSize,
-                        ),
+                        fontSize: 11,
+                        color: Colors.white38,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -438,15 +432,12 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
   }
 }
 
-// --- TERMINAL MENU ITEM ---
 class _TerminalMenuItem extends StatefulWidget {
   final String text;
-  final double fontSize;
   final VoidCallback onTap;
 
   const _TerminalMenuItem({
     required this.text,
-    required this.fontSize,
     required this.onTap,
   });
 
@@ -468,33 +459,26 @@ class _TerminalMenuItemState extends State<_TerminalMenuItem> {
       onTapCancel: () => setState(() => _isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: EdgeInsets.symmetric(
-          horizontal: widget.fontSize * 1.5,
-          vertical: widget.fontSize * 0.4,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
         decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white24,
-              width: 3,
-            ),
+          border: Border.all(
+            color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white54,
+            width: _isHovered ? 2 : 1,
           ),
           color: _isHovered
               ? const Color(0xFF4DF3FF).withValues(alpha: 0.1)
-              : Colors.transparent,
+              : Colors.white.withValues(alpha: 0.03),
         ),
         child: Text(
           "> [ ${widget.text} ]",
           style: GoogleFonts.vt323(
-            textStyle: TextStyle(
-              fontSize: widget.fontSize,
-              color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white70,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 3,
-              shadows: _isHovered
-                  ? const [Shadow(color: Color(0xFF4DF3FF), blurRadius: 12)]
-                  : [],
-            ),
+            fontSize: 20,
+            color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white,
+            shadows: _isHovered
+                ? [
+                    const Shadow(color: Color(0xFF4DF3FF), blurRadius: 15)
+                  ]
+                : [],
           ),
         ),
       ),
