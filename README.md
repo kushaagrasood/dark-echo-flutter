@@ -129,17 +129,36 @@ Ensure `assets/audio/` contains the following files:
 
 ## Project Structure
 ```
-lib/
-├── main.dart              # App entry point
-├── main_menu.dart         # Terminal-style main menu
-├── game_page.dart         # Game container & UI overlay
-├── game_model.dart        # Core game state & logic
-├── game_painter.dart      # Custom rendering pipeline
-├── maze_generator.dart    # Procedural maze algorithm
-├── arrow_controls.dart    # Touch-based directional input
-└── credits_screen.dart    # Attribution screen
+dark-echo-flutter/
+│
+├── assets/                    # Game assets
+│   ├── audio/                 # Sound effects and music
+│   │   ├── breathing.ogg      # Death sequence audio
+│   │   ├── caught(fnaf).ogg   # Jumpscare sound
+│   │   ├── footsteps.ogg      # Player movement
+│   │   ├── game_ambience.ogg  # Background music
+│   │   ├── heartbeat.ogg      # Proximity warning
+│   │   ├── menu_theme.ogg     # Main menu theme
+│   │   ├── ping.ogg           # Sonar echo sound
+│   │   └── tension.ogg        # Chase sequence drone
+│   └── images/
+│       └── icon.png           # App icon
+│
+├── lib/                       # Source code
+│   ├── main.dart              # App entry point
+│   ├── main_menu.dart         # Main menu screen
+│   ├── credits_screen.dart    # Credits screen
+│   ├── game_page.dart         # Game UI and controls
+│   ├── game_model.dart        # Core game logic and state
+│   ├── game_painter.dart      # Custom rendering pipeline
+│   ├── maze_generator.dart    # Procedural maze algorithm
+│   └── arrow_controls.dart    # Touch input controls
+│
+├── android/                   # Android platform files
+├── ios/                       # iOS platform files
+├── pubspec.yaml               # Dependencies and assets
+└── README.md                  # Project documentation
 ```
-
 ---
 
 ## Technical Specifications
