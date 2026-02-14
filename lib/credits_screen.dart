@@ -75,10 +75,35 @@ class _CreditsScreenState extends State<CreditsScreen> {
                   
                   const SizedBox(height: 50),
                   
+                  // Updated Developer & Club Section
                   Text(
-                    "Developer: Kushaagra Sood",
+                    "Developer:",
                     style: GoogleFonts.vt323(
-                      textStyle: const TextStyle(fontSize: 24, color: Colors.white70),
+                      textStyle: const TextStyle(fontSize: 22, color: Colors.white70),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    "Kushaagra Sood",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                      textStyle: const TextStyle(
+                        fontSize: 32, 
+                        color: Colors.white,
+                        shadows: [Shadow(color: Colors.blueAccent, blurRadius: 15)], // Blue Glow
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    "Android Club VIT Chennai",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                      textStyle: const TextStyle(
+                        fontSize: 26, // Slightly smaller than developer name
+                        color: Colors.white,
+                        shadows: [Shadow(color: Colors.greenAccent, blurRadius: 15)], // Green Glow
+                      ),
                     ),
                   ),
                   

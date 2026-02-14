@@ -256,29 +256,52 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Animated Title
-                AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, child) {
-                    return Text(
-                      _displayedTitle + (_displayedTitle.length == _fullTitle.length && _showCursor ? "_" : ""),
-                      style: GoogleFonts.vt323(
-                        textStyle: TextStyle(
-                          fontSize: 72,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 12,
-                          shadows: [
-                            Shadow(
-                              color: const Color(0xFF4DF3FF).withValues(alpha: 0.5 + (_pulseController.value * 0.3)),
-                              blurRadius: 15 + (_pulseController.value * 10),
+                // Animated Title (Jitter Fixed)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        return Text(
+                          _displayedTitle,
+                          style: GoogleFonts.vt323(
+                            textStyle: TextStyle(
+                              fontSize: 72,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 12,
+                              shadows: [
+                                Shadow(
+                                  color: const Color(0xFF4DF3FF).withValues(alpha: 0.5 + (_pulseController.value * 0.3)),
+                                  blurRadius: 15 + (_pulseController.value * 10),
+                                ),
+                                const Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-1, 1)),
+                              ],
                             ),
-                            const Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-1, 1)),
-                          ],
+                          ),
+                        );
+                      },
+                    ),
+                    // Fixed-width blinking cursor to prevent layout shift
+                    SizedBox(
+                      width: 40,
+                      child: AnimatedOpacity(
+                        opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 100),
+                        child: Text(
+                          "_",
+                          style: GoogleFonts.vt323(
+                            textStyle: const TextStyle(
+                              fontSize: 72,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
                 
                 const SizedBox(height: 8),
