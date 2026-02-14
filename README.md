@@ -82,7 +82,15 @@ Game supports full pause with state preservation. Audio pauses cleanly, BGM duck
 
 ## Screenshots
 
-*[Screenshots and gameplay GIFs to be added]*
+![IMG_20260215_023218](https://github.com/user-attachments/assets/945a033c-4400-4dd6-a6df-5cfe17e25b37)
+
+![IMG_20260215_023349](https://github.com/user-attachments/assets/5fe4b4c0-495b-44f9-b110-17791f92ab36)
+
+![IMG_20260215_023459](https://github.com/user-attachments/assets/f43127b6-33bb-4ec3-9732-d10b760b7aeb)
+
+![IMG_20260215_023628](https://github.com/user-attachments/assets/66ee9231-1d59-4e51-89bb-d70a97884268)
+
+![IMG_20260215_023659](https://github.com/user-attachments/assets/4f0d023f-33f6-4968-9bcd-85e70c442928)
 
 ---
 
@@ -159,13 +167,12 @@ Android Club VIT Chennai
 **Connect**  
 - GitHub: [kushaagrasood](https://github.com/kushaagrasood/)
 - LinkedIn: [kushaagrasood23](https://www.linkedin.com/in/kushaagrasood23/)
-
+- 
 ---
 
-## License
+## Acknowledgments
 
-This project is an educational demonstration of Flutter's capabilities for game development. All code is original work unless otherwise noted.
-
+Developed as part of Android Club VIT Chennai project activities.
 ---
 
-*Dark Echo proves that compelling interactive experiences can emerge from fundamental APIs and creative problem-solving. No engines required—just Flutter.*
+*Dark Echo proves that compelling interactive experiences can emerge from fundamental APIs and creative problem-solving. No engines required - just Flutter.*
