@@ -167,7 +167,7 @@ Android Club VIT Chennai
 **Connect**  
 - GitHub: [kushaagrasood](https://github.com/kushaagrasood/)
 - LinkedIn: [kushaagrasood23](https://www.linkedin.com/in/kushaagrasood23/)
-- 
+  
 ---
 
 ## Acknowledgments
