@@ -121,7 +121,7 @@ Ensure `assets/audio/` contains the following files:
 - `heartbeat.ogg`
 - `tension.ogg`
 - `breathing.ogg`
-- `scream.ogg`
+- `caught.ogg`
 - `ping.ogg`
 - `victory.ogg`
 
