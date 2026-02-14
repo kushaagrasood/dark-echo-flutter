@@ -257,7 +257,7 @@ class GameModel extends ChangeNotifier {
       caughtTimer += dt;
       if (caughtTimer >= 1.0) {
         isGameOver = true; 
-        _jumpscarePlayer.play(AssetSource('audio/scream.ogg')); // Changed audio
+        _jumpscarePlayer.play(AssetSource('audio/FAAHH.ogg')); // Changed audio
         notifyListeners();
       }
       return; 
