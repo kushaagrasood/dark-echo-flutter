@@ -14,6 +14,7 @@ class MainMenu extends StatefulWidget {
 
 class _MainMenuState extends State<MainMenu> {
   final AudioPlayer _menuPlayer = AudioPlayer();
+  // ignore: unused_field
   bool _isFirstTime = true;
 
   @override
@@ -54,9 +55,9 @@ class _MainMenuState extends State<MainMenu> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF0A0A0A),
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
-          side: const BorderSide(color: Colors.cyanAccent, width: 2),
+          side: BorderSide(color: Colors.cyanAccent, width: 2),
         ),
         title: Text(
           '[ FIRST TRANSMISSION ]',

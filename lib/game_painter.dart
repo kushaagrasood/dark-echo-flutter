@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'dart:math'; 
 import 'dart:ui' as ui;
+import 'package:google_fonts/google_fonts.dart';
 import 'game_model.dart';
 
 class GamePainter extends CustomPainter {
   final GameModel model;
+
+  // Reusable TextPainter instances for performance
+  static final TextPainter _playerPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.center,
+  );
+  
+  static final TextPainter _botPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.center,
+  );
 
   GamePainter(this.model) : super(repaint: model);
 
@@ -95,28 +107,76 @@ class GamePainter extends CustomPainter {
       }
     }
 
-    // 6. Draw Enemy Bots
+    // 6. Draw Enemy Bots (ASCII Character "Θ")
     for (var bot in model.bots) {
-      final botPaint = Paint()
-        ..color = Colors.redAccent.withValues(alpha: bot.opacity.clamp(0.0, 1.0));
-      canvas.drawCircle(bot.position, 10.0, botPaint);
+      // Calculate flicker effect (subtle alpha variation)
+      final random = Random(bot.position.dx.toInt() + bot.position.dy.toInt());
+      double flicker = 0.85 + (random.nextDouble() * 0.15); // 0.85 to 1.0
+      double finalOpacity = (bot.opacity * flicker).clamp(0.0, 1.0);
       
+      // Red glow behind bot (larger, 1.7x)
+      final botGlowPaint = Paint()
+        ..color = Colors.redAccent.withValues(alpha: finalOpacity * 0.5)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20.0);
+      canvas.drawCircle(bot.position, 20.0, botGlowPaint);
+      
+      // Enhanced glow during chase
       if (bot.state == BotState.chasing) {
-        final glowPaint = Paint()
-          ..color = Colors.redAccent.withValues(alpha: 0.3)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15.0);
-        canvas.drawCircle(bot.position, 20.0, glowPaint);
+        final chaseGlowPaint = Paint()
+          ..color = Colors.redAccent.withValues(alpha: 0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 25.0);
+        canvas.drawCircle(bot.position, 30.0, chaseGlowPaint);
       }
+      
+      // Draw bot character "Θ" with shadow
+      _botPainter.text = TextSpan(
+        text: 'Θ',
+        style: GoogleFonts.vt323(
+          fontSize: 36.0, // 1.7x larger than player (36 vs 24)
+          color: Colors.redAccent.withValues(alpha: finalOpacity),
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.red.withValues(alpha: finalOpacity * 0.8),
+              blurRadius: 8.0,
+            ),
+          ],
+        ),
+      );
+      _botPainter.layout();
+      
+      // Center text on bot position
+      final botOffset = bot.position - Offset(_botPainter.width / 2, _botPainter.height / 2);
+      _botPainter.paint(canvas, botOffset);
     }
 
-    // 7. Draw Player
-    final playerPaint = Paint()..color = Colors.blueAccent;
-    canvas.drawCircle(model.playerPos, 8.0, playerPaint);
-    
+    // 7. Draw Player (ASCII Character "@")
+    // Faint glow around player
     final playerGlowPaint = Paint()
-      ..color = Colors.blueAccent.withValues(alpha: 0.2)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
-    canvas.drawCircle(model.playerPos, 15.0, playerGlowPaint);
+      ..color = Colors.blueAccent.withValues(alpha: 0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12.0);
+    canvas.drawCircle(model.playerPos, 18.0, playerGlowPaint);
+    
+    // Draw player character "@" with shadow
+    _playerPainter.text = TextSpan(
+      text: '@',
+      style: GoogleFonts.vt323(
+        fontSize: 28.0,
+        color: Colors.blueAccent,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(
+            color: Colors.blue.withValues(alpha: 0.6),
+            blurRadius: 6.0,
+          ),
+        ],
+      ),
+    );
+    _playerPainter.layout();
+    
+    // Center text on player position
+    final playerOffset = model.playerPos - Offset(_playerPainter.width / 2, _playerPainter.height / 2);
+    _playerPainter.paint(canvas, playerOffset);
 
     // 8. Visual Heartbeat Pulse
     if (model.visualPulseIntensity > 0) {
