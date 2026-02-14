@@ -325,7 +325,7 @@ class _MainMenuState extends State<MainMenu> {
             bottom: 20,
             left: 20,
             child: Text(
-              "> dev: kushaagra_sood_",
+              "> dev: kushaagra_sood",
               style: GoogleFonts.vt323(
                 textStyle: const TextStyle(
                   color: Colors.white38,
@@ -336,18 +336,19 @@ class _MainMenuState extends State<MainMenu> {
           ),
           
           // Auth info - Bottom Right
-          const Positioned(
+          Positioned(
             bottom: 20,
             right: 20,
             child: Text(
               "> auth: operator_01_",
-              style: TextStyle(
-                color: Colors.white38,
-                fontFamily: 'Courier',
-                fontSize: 14,
+              style: GoogleFonts.vt323(
+                textStyle: const TextStyle(
+                  color: Colors.white38,
+                  fontSize: 16,
+                )
+              )
               ),
             ),
-          ),
         ],
       ),
     );
