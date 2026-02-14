@@ -183,14 +183,7 @@ class GameModel extends ChangeNotifier {
   bool _isFootstepsPlaying = false;
   bool _isHeartbeatPlaying = false;
   bool _isTensionPlaying = false;
-  double _currentHeartbeatVolume = 0.0;
-  double _currentTensionVolume = 0.0;
-  double _currentBgmVolume = 1.0;
-  
-  // Track last set volumes to prevent redundant setVolume() calls
-  double _lastSetHeartbeatVol = 0.0;
-  double _lastSetTensionVol = 0.0;
-  double _lastSetBgmVol = 1.0;
+  double _currentBgmVolume = 1.0; // Only BGM uses smooth transitions
 
   double visualPulseIntensity = 0.0;
   double _pulseTimer = 0.0;
@@ -526,7 +519,6 @@ class GameModel extends ChangeNotifier {
   void _updateAudio(double dt) {
     // During death sequence, mute all audio except death sounds
     if (currentPhase == GamePhase.deathSequence) {
-      // Gradually fade out all gameplay audio
       if (_isFootstepsPlaying) {
         _footstepsPlayer.stop();
         _isFootstepsPlaying = false;
@@ -539,7 +531,7 @@ class GameModel extends ChangeNotifier {
         _tensionPlayer.stop();
         _isTensionPlaying = false;
       }
-      return; // No other audio processing during death
+      return;
     }
 
     // Skip audio processing if game is over
@@ -547,17 +539,20 @@ class GameModel extends ChangeNotifier {
       return;
     }
 
+    // ================================================================
+    // AUDIO OVERLAY - All layers play independently
+    // ================================================================
+
+    // FOOTSTEPS LAYER
     bool isMoving = _actualVelocity.distance > 5.0;
-    
-    // FOOTSTEPS LAYER - State-based control (no per-frame calls)
     if (isMoving && !_isFootstepsPlaying) {
       _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
       _isFootstepsPlaying = true;
-      print('[AUDIO] Started footsteps loop');
+      print('[AUDIO] Started footsteps');
     } else if (!isMoving && _isFootstepsPlaying) {
       _footstepsPlayer.stop();
       _isFootstepsPlaying = false;
-      print('[AUDIO] Stopped footsteps loop');
+      print('[AUDIO] Stopped footsteps');
     }
 
     // THREAT DETECTION
@@ -570,93 +565,84 @@ class GameModel extends ChangeNotifier {
       if (bot.state == BotState.chasing) anyChasing = true;
     }
 
-    // HEARTBEAT & TENSION LAYERS - Calculate target volumes
-    double targetHeartbeatVol = 0.0;
-    double targetTensionVol = 0.0;
-    double targetBgmVol = 1.0;
+    // ================================================================
+    // HEARTBEAT SYSTEM - Synced with visual pulse
+    // ================================================================
+    // Proximity threshold for heartbeat
+    const double heartbeatRadius = 250.0;
+    
+    bool shouldPlayHeartbeat = minBotDist < heartbeatRadius;
+    double intensity = 0.0;
+    
+    if (shouldPlayHeartbeat) {
+      // Calculate intensity (0.0 at heartbeatRadius, 1.0 at bot position)
+      intensity = (1.0 - (minBotDist / heartbeatRadius)).clamp(0.0, 1.0);
+    }
 
-    if (anyChasing) {
-      // In chase: heartbeat dominant, BGM ducked
-      double intensity = (1.0 - (minBotDist / 300.0)).clamp(0.0, 1.0);
-      targetHeartbeatVol = 0.7 + (intensity * 0.3); // 0.7 to 1.0
-      targetTensionVol = 0.5 + (intensity * 0.5);   // 0.5 to 1.0
-      targetBgmVol = 0.2; // Duck BGM during chase
+    // HEARTBEAT TRIGGER - Start/stop based on proximity
+    if (shouldPlayHeartbeat && !_isHeartbeatPlaying) {
+      _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
+      _isHeartbeatPlaying = true;
+      print('[AUDIO] ❤️ Heartbeat started (bot within ${minBotDist.toStringAsFixed(0)}px)');
+    } else if (!shouldPlayHeartbeat && _isHeartbeatPlaying) {
+      _heartbeatPlayer.stop();
+      _isHeartbeatPlaying = false;
+      _pulseTimer = 0.0;
+      visualPulseIntensity = 0.0;
+      print('[AUDIO] ❤️ Heartbeat stopped (bot too far)');
+    }
+
+    // HEARTBEAT VOLUME - Scale with distance (louder when closer)
+    if (_isHeartbeatPlaying) {
+      double heartbeatVol = 0.4 + (intensity * 0.6); // 0.4 to 1.0
+      if (anyChasing) {
+        heartbeatVol = 0.7 + (intensity * 0.3); // 0.7 to 1.0 during chase
+      }
+      _heartbeatPlayer.setVolume(heartbeatVol);
       
-      // Visual pulse
-      _pulseTimer += dt * (3.0 + intensity * 5.0);
-      visualPulseIntensity = (sin(_pulseTimer) + 1.0) / 2.0;
-      visualPulseIntensity *= intensity;
+      // VISUAL PULSE - Synced with heartbeat
+      double pulseSpeed = 2.5 + (intensity * 3.5); // Faster when closer
+      _pulseTimer += dt * pulseSpeed;
+      visualPulseIntensity = (sin(_pulseTimer) * 0.5 + 0.5) * intensity;
       
-    } else if (minBotDist < 200.0) {
-      // Proximity warning
-      double intensity = (1.0 - (minBotDist / 200.0)).clamp(0.0, 1.0);
-      targetHeartbeatVol = intensity * 0.5;
-      targetTensionVol = intensity * 0.3;
-      targetBgmVol = 0.6; // Slight duck
-      
-      visualPulseIntensity *= 0.95; // Fade pulse when not in chase
+      print('[AUDIO] ❤️ Heartbeat vol: ${heartbeatVol.toStringAsFixed(2)}, pulse: ${visualPulseIntensity.toStringAsFixed(2)}');
     } else {
       visualPulseIntensity = 0.0;
       _pulseTimer = 0.0;
     }
 
-    // SMOOTH VOLUME TRANSITIONS (interpolate, but don't set yet)
-    double volumeSpeed = 2.0;
-    _currentHeartbeatVolume += (targetHeartbeatVol - _currentHeartbeatVolume) * volumeSpeed * dt;
-    _currentTensionVolume += (targetTensionVol - _currentTensionVolume) * volumeSpeed * dt;
-    _currentBgmVolume += (targetBgmVol - _currentBgmVolume) * volumeSpeed * dt;
-
-    // CRITICAL FIX: Only call setVolume() when volume changes significantly
-    // This prevents audio latency from redundant API calls
-    const double volumeChangeThreshold = 0.02; // 2% change required
-    
-    double heartbeatVol = _currentHeartbeatVolume.clamp(0.0, 1.0);
-    if ((heartbeatVol - _lastSetHeartbeatVol).abs() > volumeChangeThreshold) {
-      _heartbeatPlayer.setVolume(heartbeatVol);
-      _lastSetHeartbeatVol = heartbeatVol;
-    }
-    
-    double tensionVol = _currentTensionVolume.clamp(0.0, 1.0);
-    if ((tensionVol - _lastSetTensionVol).abs() > volumeChangeThreshold) {
-      _tensionPlayer.setVolume(tensionVol);
-      _lastSetTensionVol = tensionVol;
-    }
-    
-    double bgmVol = _currentBgmVolume.clamp(0.0, 1.0);
-    if ((bgmVol - _lastSetBgmVol).abs() > volumeChangeThreshold) {
-      _bgmPlayer.setVolume(bgmVol);
-      _lastSetBgmVol = bgmVol;
-    }
-
-    // Start/stop heartbeat loop - STATE CHANGE ONLY
-    if (targetHeartbeatVol > 0.01 && !_isHeartbeatPlaying) {
-      _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
-      _isHeartbeatPlaying = true;
-      // Force volume update on start
-      _heartbeatPlayer.setVolume(heartbeatVol);
-      _lastSetHeartbeatVol = heartbeatVol;
-      print('[AUDIO] Started heartbeat loop at volume ${heartbeatVol.toStringAsFixed(2)}');
-    } else if (targetHeartbeatVol <= 0.01 && _isHeartbeatPlaying) {
-      _heartbeatPlayer.stop();
-      _isHeartbeatPlaying = false;
-      _lastSetHeartbeatVol = 0.0;
-      print('[AUDIO] Stopped heartbeat loop');
-    }
-
-    // Start/stop tension loop - STATE CHANGE ONLY
-    if (targetTensionVol > 0.01 && !_isTensionPlaying) {
+    // ================================================================
+    // TENSION LAYER - Only during chase
+    // ================================================================
+    if (anyChasing && !_isTensionPlaying) {
       _tensionPlayer.play(AssetSource('audio/tension.ogg'));
       _isTensionPlaying = true;
-      // Force volume update on start
-      _tensionPlayer.setVolume(tensionVol);
-      _lastSetTensionVol = tensionVol;
-      print('[AUDIO] Started tension loop at volume ${tensionVol.toStringAsFixed(2)}');
-    } else if (targetTensionVol <= 0.01 && _isTensionPlaying) {
+      print('[AUDIO] 🎵 Tension started (chase active)');
+    } else if (!anyChasing && _isTensionPlaying) {
       _tensionPlayer.stop();
       _isTensionPlaying = false;
-      _lastSetTensionVol = 0.0;
-      print('[AUDIO] Stopped tension loop');
+      print('[AUDIO] 🎵 Tension stopped (chase ended)');
     }
+
+    // TENSION VOLUME - Scale with chase intensity
+    if (_isTensionPlaying) {
+      double tensionVol = 0.5 + (intensity * 0.5); // 0.5 to 1.0
+      _tensionPlayer.setVolume(tensionVol);
+    }
+
+    // ================================================================
+    // BGM DUCKING - Lower BGM during danger
+    // ================================================================
+    double targetBgmVol = 1.0;
+    if (anyChasing) {
+      targetBgmVol = 0.2; // Heavy duck during chase
+    } else if (shouldPlayHeartbeat) {
+      targetBgmVol = 0.5; // Slight duck when bot nearby
+    }
+    
+    // Smooth BGM volume transitions
+    _currentBgmVolume += (targetBgmVol - _currentBgmVolume) * 3.0 * dt;
+    _bgmPlayer.setVolume(_currentBgmVolume.clamp(0.0, 1.0));
 
     // PANIC VISUAL LAYER
     bool inDeadEnd = _isPlayerInDeadEnd();
@@ -1055,12 +1041,7 @@ class GameModel extends ChangeNotifier {
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
     _isTensionPlaying = false;
-    _currentHeartbeatVolume = 0.0;
-    _currentTensionVolume = 0.0;
     _currentBgmVolume = 1.0;
-    _lastSetHeartbeatVol = 0.0;
-    _lastSetTensionVol = 0.0;
-    _lastSetBgmVol = 1.0;
     
     // Stop all layered audio
     _footstepsPlayer.stop();
