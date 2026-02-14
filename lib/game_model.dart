@@ -223,7 +223,7 @@ class GameModel extends ChangeNotifier {
       startOffset: mazeOffset,
     );
 
-    final startCell = const Point(0, 0);
+    const startCell = Point(0, 0);
     final exitCell = Point(config.gridWidth - 1, config.gridHeight - 1);
 
     walls = mazeGenerator.generate(startCell, exitCell);
@@ -256,7 +256,6 @@ class GameModel extends ChangeNotifier {
   }
 
   void _initAudio() async {
-    print('[AUDIO] Initializing audio players...');
     
     // CRITICAL: Set loop modes BEFORE playing
     await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
@@ -272,13 +271,13 @@ class GameModel extends ChangeNotifier {
     
     // Start BGM - this should NEVER be stopped by footsteps
     await _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
-    print('[AUDIO] BGM started playing in loop mode');
+   
   }
 
   void pauseGame() {
     if (currentPhase != GamePhase.playing) return;
     
-    print('[PAUSE] Game paused');
+    
     currentPhase = GamePhase.paused;
     
     _wasPausedMidFootstep = _isFootstepsPlaying;
@@ -296,7 +295,7 @@ class GameModel extends ChangeNotifier {
   void resumeGame() {
     if (currentPhase != GamePhase.paused) return;
     
-    print('[PAUSE] Game resumed');
+    
     currentPhase = GamePhase.playing;
     
     if (_wasPausedMidFootstep) _footstepsPlayer.resume();
@@ -309,7 +308,7 @@ class GameModel extends ChangeNotifier {
   }
   
   void stopAllAudio() { // WAS: void _stopAllAudio()
-      print('[AUDIO] Stopping all audio');
+      
       _bgmPlayer.stop();
       _footstepsPlayer.stop();
       _heartbeatPlayer.stop();
@@ -381,8 +380,12 @@ class GameModel extends ChangeNotifier {
       Offset fallbackX = Offset(playerPos.dx + _actualVelocity.dx * dt, playerPos.dy);
       Offset fallbackY = Offset(playerPos.dx, playerPos.dy + _actualVelocity.dy * dt);
       
-      if (!_checkCollision(fallbackX)) playerPos = fallbackX;
-      else if (!_checkCollision(fallbackY)) playerPos = fallbackY;
+      if (!_checkCollision(fallbackX)) {
+        playerPos = fallbackX;
+      }
+      else if (!_checkCollision(fallbackY)) {
+        playerPos = fallbackY;
+      }
     }
 
     // === CAMERA FOLLOW ===
@@ -473,7 +476,6 @@ class GameModel extends ChangeNotifier {
       _breathingPlayer.setVolume(1.0); // Full volume for breathing
       _breathingPlayer.play(AssetSource('audio/breathing.ogg'));
       _breathingPlayed = true;
-      print('[DEATH] Breathing sound played (LOUD)');
     }
 
     // Stage 2: Play caught.ogg and transition to game over at 1.0s
@@ -481,7 +483,6 @@ class GameModel extends ChangeNotifier {
       // Play caught.ogg
       _jumpscarePlayer.play(AssetSource('audio/caught.ogg'));
       _jumpscarePlayed = true;
-      print('[DEATH] Caught sound played');
       
       // Immediately transition to game over and show SIGNAL LOST screen
       currentPhase = GamePhase.gameOver;
@@ -492,7 +493,6 @@ class GameModel extends ChangeNotifier {
       _footstepsPlayer.stop();
       _tensionPlayer.stop();
       
-      print('[DEATH] Transitioned to GAME OVER (SIGNAL LOST)');
     }
   }
 
@@ -502,7 +502,6 @@ class GameModel extends ChangeNotifier {
   void _triggerDeathSequence() {
     if (currentPhase != GamePhase.playing) return; // Already triggered
     
-    print('[DEATH] Player caught! Starting death sequence...');
     
     // Switch to death phase
     currentPhase = GamePhase.deathSequence;
@@ -538,7 +537,6 @@ class GameModel extends ChangeNotifier {
   void _triggerVictory() {
     if (currentPhase != GamePhase.playing) return; // Already triggered
     
-    print('[VICTORY] Player reached exit!');
     
     currentPhase = GamePhase.gameWon;
     
@@ -603,11 +601,9 @@ class GameModel extends ChangeNotifier {
     if (isMoving && !_isFootstepsPlaying) {
       _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
       _isFootstepsPlaying = true;
-      print('[AUDIO] Started footsteps');
     } else if (!isMoving && _isFootstepsPlaying) {
       _footstepsPlayer.stop();
       _isFootstepsPlaying = false;
-      print('[AUDIO] Stopped footsteps');
     }
 
     // THREAT DETECTION
@@ -638,13 +634,12 @@ class GameModel extends ChangeNotifier {
     if (shouldPlayHeartbeat && !_isHeartbeatPlaying) {
       _heartbeatPlayer.play(AssetSource('audio/heartbeat.ogg'));
       _isHeartbeatPlaying = true;
-      print('[AUDIO] ❤️ Heartbeat started (bot within ${minBotDist.toStringAsFixed(0)}px)');
     } else if (!shouldPlayHeartbeat && _isHeartbeatPlaying) {
       _heartbeatPlayer.stop();
       _isHeartbeatPlaying = false;
       _pulseTimer = 0.0;
       visualPulseIntensity = 0.0;
-      print('[AUDIO] ❤️ Heartbeat stopped (bot too far)');
+      
     }
 
     // HEARTBEAT VOLUME - Scale with distance (louder when closer)
@@ -660,7 +655,6 @@ class GameModel extends ChangeNotifier {
       _pulseTimer += dt * pulseSpeed;
       visualPulseIntensity = (sin(_pulseTimer) * 0.5 + 0.5) * intensity;
       
-      print('[AUDIO] ❤️ Heartbeat vol: ${heartbeatVol.toStringAsFixed(2)}, pulse: ${visualPulseIntensity.toStringAsFixed(2)}');
     } else {
       visualPulseIntensity = 0.0;
       _pulseTimer = 0.0;
@@ -672,11 +666,9 @@ class GameModel extends ChangeNotifier {
     if (anyChasing && !_isTensionPlaying) {
       _tensionPlayer.play(AssetSource('audio/tension.ogg'));
       _isTensionPlaying = true;
-      print('[AUDIO] 🎵 Tension started (chase active)');
     } else if (!anyChasing && _isTensionPlaying) {
       _tensionPlayer.stop();
       _isTensionPlaying = false;
-      print('[AUDIO] 🎵 Tension stopped (chase ended)');
     }
 
     // TENSION VOLUME - Scale with chase intensity
@@ -717,7 +709,9 @@ class GameModel extends ChangeNotifier {
       double angleToPlayer = atan2(dirToPlayer.dy, dirToPlayer.dx);
       double angleDiff = (angleToPlayer - bot.facingAngle).abs();
       
-      while (angleDiff > pi) angleDiff -= 2 * pi;
+      while (angleDiff > pi) {
+        angleDiff -= 2 * pi;
+      }
       angleDiff = angleDiff.abs();
       
       if (angleDiff < pi / 3 && _hasLineOfSight(bot.position, playerPos)) {
@@ -739,7 +733,6 @@ class GameModel extends ChangeNotifier {
               minError: 20.0, 
               maxError: 60.0
             );
-            print('[BOT-HEARING] State: ${bot.state.name}, Heard sound at strength ${strength.toStringAsFixed(2)} (approx position stored)');
           }
         }
       }
@@ -755,7 +748,6 @@ class GameModel extends ChangeNotifier {
         maxError: 30.0
       );
       bot.currentPath.clear();
-      print('[BOT-TRANSITION] ${bot.state.name} → CHASING (visual contact - approx position stored)');
     }
 
     // === STATE MACHINE ===
@@ -771,8 +763,6 @@ class GameModel extends ChangeNotifier {
           bot.currentPath.clear();
           bot.isIdlePaused = false;
           bot.idlePauseTimer = 0.0;
-          print('[BOT-TRANSITION] IDLE → INVESTIGATING (sound strength: ${bot.lastHeardStrength.toStringAsFixed(2)})');
-          print('[BOT] Approximate target: ${bot.lastHeardPosition}');
           break;
         }
         
@@ -790,7 +780,6 @@ class GameModel extends ChangeNotifier {
             // Pick new roam target
             bot.idleRoamTarget = _getIdleRoamTarget(bot.position);
             bot.currentPath.clear();
-            print('[BOT-IDLE] Picked new roam target: ${bot.idleRoamTarget}');
           } else {
             // Move toward roam target
             _moveBotWithPathfinding(bot, bot.idleRoamTarget!, dt, 0.4); // Slow roaming
@@ -801,7 +790,6 @@ class GameModel extends ChangeNotifier {
               bot.isIdlePaused = true;
               bot.idlePauseTimer = 1.0 + random.nextDouble() * 2.0; // 1-3 second pause
               bot.idleRoamTarget = null;
-              print('[BOT-IDLE] Reached roam target, pausing for ${bot.idlePauseTimer.toStringAsFixed(1)}s');
             }
           }
         }
@@ -823,7 +811,6 @@ class GameModel extends ChangeNotifier {
             bot.currentWaypoint = _getRandomNearbyPosition(bot.lastHeardPosition!, 40.0);
             bot.lastHeardStrength = 0.0;
             bot.currentPath.clear();
-            print('[BOT-TRANSITION] INVESTIGATING → SEARCHING (reached approx target, searching for ${bot.stateTimer.toStringAsFixed(1)}s)');
           }
         } else {
           // No target - return to idle
@@ -831,7 +818,6 @@ class GameModel extends ChangeNotifier {
           bot.lastHeardStrength = 0.0;
           bot.idleRoamTarget = null;
           bot.isIdlePaused = false;
-          print('[BOT-TRANSITION] INVESTIGATING → IDLE (no target)');
         }
         break;
 
@@ -861,7 +847,6 @@ class GameModel extends ChangeNotifier {
               // Search around last approximate position
               bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 60.0);
               bot.currentPath.clear();
-              print('[BOT-TRANSITION] CHASING → SEARCHING (lost visual, reached approx position, searching for ${bot.stateTimer.toStringAsFixed(1)}s)');
             }
           } else {
             // No last seen position - enter search mode at current location
@@ -869,7 +854,6 @@ class GameModel extends ChangeNotifier {
             bot.stateTimer = 3.0 + random.nextDouble() * 2.0;
             bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
             bot.currentPath.clear();
-            print('[BOT-TRANSITION] CHASING → SEARCHING (no approx position, searching for ${bot.stateTimer.toStringAsFixed(1)}s)');
           }
         }
         break;
@@ -887,7 +871,6 @@ class GameModel extends ChangeNotifier {
             if (bot.lastSeenPosition != null) {
                bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 70.0);
                bot.currentPath.clear();
-               print('[BOT-SEARCH] Reached waypoint, picking new search point');
             }
           }
         }
@@ -900,7 +883,6 @@ class GameModel extends ChangeNotifier {
           bot.currentWaypoint = null;
           bot.currentPath.clear();
           bot.lastHeardStrength = 0.0;
-          print('[BOT-TRANSITION] SEARCHING → COOLDOWN (timer expired)');
         }
         break;
 
@@ -921,7 +903,6 @@ class GameModel extends ChangeNotifier {
           bot.idleRoamTarget = null;     // Will pick new target in idle
           bot.isIdlePaused = false;
           bot.idlePauseTimer = 0.0;
-          print('[BOT-TRANSITION] COOLDOWN → IDLE (fully reset, resuming roam patrol)');
         }
         break;
     }
@@ -957,7 +938,6 @@ class GameModel extends ChangeNotifier {
       bot.currentPathIndex = 0;
       
       if (bot.currentPath.isEmpty) {
-        print('[BOT] WARNING: No path found from $botCell to $targetCell');
         return;
       }
     }
@@ -976,7 +956,6 @@ class GameModel extends ChangeNotifier {
         
         // Only print when advancing waypoints to reduce spam
         if (bot.currentPathIndex < bot.currentPath.length) {
-          print('[BOT] Reached waypoint ${bot.currentPathIndex}/${bot.currentPath.length}');
         }
       } else {
         // CRITICAL: Apply movement every frame
@@ -1106,7 +1085,6 @@ class GameModel extends ChangeNotifier {
     _tensionPlayer.stop();
     
     // Restart BGM at full volume
-    print('[AUDIO] Restarting BGM for new game');
     _bgmPlayer.setVolume(1.0);
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
     

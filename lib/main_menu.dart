@@ -17,7 +17,7 @@ class MainMenu extends StatefulWidget {
 class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
   final AudioPlayer _menuPlayer = AudioPlayer();
   // ignore: unused_field
-  bool _isFirstTime = true;
+  final bool _isFirstTime = true;
 
   // Animations
   late AnimationController _pulseController;
@@ -187,10 +187,10 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                       ]),
                       const SizedBox(height: 16),
                       _buildDatabaseSection('ENEMY AI', [
-                        '• Enemies patrol the maze',
-                        '• They hear your pings',
+                        '• An enemy patrols the maze',
+                        '• It hears your pings',
                         '• Approximate tracking - not omniscient',
-                        '• Use decoy pings to mislead them'
+                        '• Use decoy pings to mislead it'
                       ]),
                       const SizedBox(height: 16),
                       _buildDatabaseSection('AUDIO CUES', [
@@ -290,7 +290,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                           return Text(
                             _displayedTitle,
                             style: GoogleFonts.vt323(
-                              fontSize: 40,
+                              fontSize: 56,
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 6,
@@ -378,7 +378,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
               ),
             ),
             
-            // 5. Footer - 11px font
+            // 5. Footer - 18px font
             Positioned(
               left: 10,
               right: 10,
@@ -394,7 +394,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                         return Text(
                           "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
                           style: GoogleFonts.vt323(
-                            fontSize: 11,
+                            fontSize: 18,
                             color: const Color(0xFF4DF3FF).withValues(
                               alpha: 0.7 + (_pulseController.value * 0.3)
                             ),
@@ -411,12 +411,12 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                     ),
                   ),
                   
-                  // Auth info
+                  // User info
                   Flexible(
                     child: Text(
-                      "> auth: operator_01_",
+                      "> user: operator_01_",
                       style: GoogleFonts.vt323(
-                        fontSize: 11,
+                        fontSize: 18,
                         color: Colors.white38,
                       ),
                       overflow: TextOverflow.ellipsis,

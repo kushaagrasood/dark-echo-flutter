@@ -70,9 +70,9 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF0A0A0A),
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
-          side: const BorderSide(color: Colors.white24, width: 2),
+          side: BorderSide(color: Colors.white24, width: 2),
         ),
         title: Text(
           '[ SELECT DIFFICULTY ]',
@@ -157,7 +157,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.settings,
                         color: Colors.white54,
                         size: 18,
