@@ -44,58 +44,58 @@ class _CreditsScreenState extends State<CreditsScreen> {
               ),
             ),
 
-            // 3. Content - FIXED LAYOUT (~270px total)
+            // 3. Content - ULTRA-COMPACT (~212px total, -28px from previous)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Title - 48px
+                  // Title - 42px (reduced from 48px)
                   Text(
                     "DARK ECHO",
                     textAlign: TextAlign.center,
                     style: GoogleFonts.vt323(
-                      fontSize: 48,
+                      fontSize: 42,
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 6,
+                      letterSpacing: 5,
                       shadows: const [
                         Shadow(color: Color(0xFF4DF3FF), blurRadius: 15)
                       ],
                     ),
                   ),
                   
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3), // Reduced from 4px
                   
-                  // Subtitle - 14px
+                  // Subtitle - 13px (reduced from 14px)
                   Text(
                     "> SYSTEM ARCHITECTS",
                     style: GoogleFonts.vt323(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Colors.white38,
                       letterSpacing: 2,
                     ),
                   ),
                   
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24), // Reduced from 32px (-8px)
                   
-                  // Developer Label - 16px
+                  // Developer Label - 15px (reduced from 16px)
                   Text(
                     "Developer:",
                     style: GoogleFonts.vt323(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.white70,
                     ),
                   ),
                   
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4), // Reduced from 6px
                   
-                  // Developer Name - 28px
+                  // Developer Name - 26px (reduced from 28px)
                   Text(
                     "Kushaagra Sood",
                     textAlign: TextAlign.center,
                     style: GoogleFonts.vt323(
-                      fontSize: 28,
+                      fontSize: 26,
                       color: Colors.white,
                       shadows: const [
                         Shadow(color: Colors.blueAccent, blurRadius: 15)
@@ -103,14 +103,14 @@ class _CreditsScreenState extends State<CreditsScreen> {
                     ),
                   ),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16), // Reduced from 20px (-4px)
                   
-                  // Club Name - 22px
+                  // Club Name - 20px (reduced from 22px)
                   Text(
                     "Android Club VIT Chennai",
                     textAlign: TextAlign.center,
                     style: GoogleFonts.vt323(
-                      fontSize: 22,
+                      fontSize: 20,
                       color: Colors.white,
                       shadows: const [
                         Shadow(color: Colors.greenAccent, blurRadius: 15)
@@ -118,9 +118,9 @@ class _CreditsScreenState extends State<CreditsScreen> {
                     ),
                   ),
                   
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 22), // Reduced from 28px (-6px)
                   
-                  // Links Row - 16px
+                  // Links Row - 15px (reduced from 16px)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -129,7 +129,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                         text: 'GITHUB',
                         onTap: () => _launchURL('https://github.com/kushaagrasood/'),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14), // Reduced from 16px
                       _TerminalLinkButton(
                         icon: Icons.business,
                         text: 'LINKEDIN',
@@ -138,15 +138,15 @@ class _CreditsScreenState extends State<CreditsScreen> {
                     ],
                   ),
                   
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28), // Reduced from 36px (-8px)
                   
-                  // Back Button - 18px
+                  // Back Button - 17px (reduced from 18px)
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 10,
+                        horizontal: 24, // Reduced from 28px
+                        vertical: 8,    // Reduced from 10px
                       ),
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.white24),
@@ -155,7 +155,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                       child: Text(
                         "[ RETURN ]",
                         style: GoogleFonts.vt323(
-                          fontSize: 18,
+                          fontSize: 17,
                           color: Colors.white54,
                         ),
                       ),
@@ -201,8 +201,8 @@ class _TerminalLinkButtonState extends State<_TerminalLinkButton> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
+          horizontal: 10, // Reduced from 12px
+          vertical: 7,    // Reduced from 8px
         ),
         decoration: BoxDecoration(
           border: Border(
@@ -221,13 +221,13 @@ class _TerminalLinkButtonState extends State<_TerminalLinkButton> {
             Icon(
               widget.icon,
               color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white54,
-              size: 16,
+              size: 15, // Reduced from 16px
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7), // Reduced from 8px
             Text(
               "[ ${widget.text} ]",
               style: GoogleFonts.vt323(
-                fontSize: 16,
+                fontSize: 15, // Reduced from 16px
                 color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white70,
                 shadows: _isHovered
                     ? const [
