@@ -217,246 +217,221 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen dimensions
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Proportional sizing - EVERYTHING scales
+    final titleFontSize = screenWidth * 0.09;
+    final subtitleFontSize = screenWidth * 0.024;
+    final menuFontSize = screenWidth * 0.045;
+    final footerFontSize = screenWidth * 0.022;
+    
+    // Proportional spacing - scales with screen height
+    final titleGap = screenHeight * 0.01;
+    final sectionGap = screenHeight * 0.08;
+    final menuItemGap = screenHeight * 0.02;
+    final footerPadding = screenHeight * 0.025;
+    
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Responsive sizing
-            final screenHeight = constraints.maxHeight;
-            final screenWidth = constraints.maxWidth;
-            
-            // Adaptive spacing
-            final double smallGap = screenHeight * 0.01;
-            final double mediumGap = screenHeight * 0.02;
-            final double largeGap = screenHeight * 0.08;
-            
-            // Adaptive font sizes
-            final double titleSize = (screenWidth * 0.12).clamp(48.0, 72.0);
-            final double subtitleSize = (screenWidth * 0.03).clamp(14.0, 18.0);
-            final double menuSize = (screenWidth * 0.04).clamp(20.0, 28.0);
-            final double footerSize = (screenWidth * 0.03).clamp(14.0, 18.0);
-            
-            return Stack(
-              children: [
-                // 1. Background Gradient
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.center,
-                      radius: 1.2,
-                      colors: [Color(0xFF14141A), Color(0xFF020205)],
-                      stops: [0.2, 1.0],
-                    ),
-                  ),
+        child: Stack(
+          children: [
+            // 1. Background Gradient
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.2,
+                  colors: [Color(0xFF14141A), Color(0xFF020205)],
+                  stops: [0.2, 1.0],
                 ),
+              ),
+            ),
 
-                // 2. CRT Scanlines
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(painter: _ScanlinePainter()),
-                  ),
-                ),
+            // 2. CRT Scanlines
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(painter: _ScanlinePainter()),
+              ),
+            ),
 
-                // 3. Flicker Overlay
-                AnimatedBuilder(
-                  animation: _flickerController,
-                  builder: (context, child) {
-                    return Container(
-                      color: Colors.white.withValues(alpha: _flickerController.value * 0.05),
-                    );
-                  },
-                ),
+            // 3. Flicker Overlay
+            AnimatedBuilder(
+              animation: _flickerController,
+              builder: (context, child) {
+                return Container(
+                  color: Colors.white.withValues(alpha: _flickerController.value * 0.05),
+                );
+              },
+            ),
 
-                // 4. Main Content - Properly centered with flexible spacing
-                Column(
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: screenWidth * 0.08,
-                              vertical: screenHeight * 0.05,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // Animated Title
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Flexible(
-                                      child: AnimatedBuilder(
-                                        animation: _pulseController,
-                                        builder: (context, child) {
-                                          return Text(
-                                            _displayedTitle,
-                                            textAlign: TextAlign.center,
-                                            style: GoogleFonts.vt323(
-                                              textStyle: TextStyle(
-                                                fontSize: titleSize,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: screenWidth * 0.02,
-                                                shadows: [
-                                                  Shadow(
-                                                    color: const Color(0xFF4DF3FF).withValues(
-                                                      alpha: 0.5 + (_pulseController.value * 0.3)
-                                                    ),
-                                                    blurRadius: 15 + (_pulseController.value * 10),
-                                                  ),
-                                                  const Shadow(
-                                                    color: Colors.white70,
-                                                    blurRadius: 2,
-                                                    offset: Offset(-1, 1),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
+            // 4. Main Content - NO SCROLL, everything fits
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Animated Title
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _pulseController,
+                        builder: (context, child) {
+                          return Text(
+                            _displayedTitle,
+                            style: GoogleFonts.vt323(
+                              textStyle: TextStyle(
+                                fontSize: titleFontSize,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: screenWidth * 0.015,
+                                shadows: [
+                                  Shadow(
+                                    color: const Color(0xFF4DF3FF).withValues(
+                                      alpha: 0.5 + (_pulseController.value * 0.3)
                                     ),
-                                    // Cursor
-                                    SizedBox(
-                                      width: titleSize * 0.5,
-                                      child: AnimatedOpacity(
-                                        opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
-                                        duration: const Duration(milliseconds: 100),
-                                        child: Text(
-                                          "_",
-                                          style: GoogleFonts.vt323(
-                                            textStyle: TextStyle(
-                                              fontSize: titleSize,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                
-                                SizedBox(height: smallGap),
-                                
-                                Text(
-                                  "> ECHO LOCATION PROTOCOL v2.1",
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.vt323(
-                                    textStyle: TextStyle(
-                                      fontSize: subtitleSize,
-                                      color: Colors.white38,
-                                      letterSpacing: 4,
-                                    ),
+                                    blurRadius: 15 + (_pulseController.value * 10),
                                   ),
-                                ),
-                                
-                                SizedBox(height: largeGap),
-                                
-                                // Menu Items
-                                _TerminalMenuItem(
-                                  text: 'INITIALIZE',
-                                  fontSize: menuSize,
-                                  onTap: () {
-                                    _menuPlayer.stop();
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const GamePage()),
-                                    );
-                                  },
-                                ),
-                                
-                                SizedBox(height: mediumGap),
-                                
-                                _TerminalMenuItem(
-                                  text: 'DATABASE',
-                                  fontSize: menuSize,
-                                  onTap: () => _showDatabase(context),
-                                ),
-                                
-                                SizedBox(height: mediumGap),
-                                
-                                _TerminalMenuItem(
-                                  text: 'CREDITS',
-                                  fontSize: menuSize,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const CreditsScreen()),
-                                    );
-                                  },
-                                ),
-                              ],
+                                  const Shadow(
+                                    color: Colors.white70,
+                                    blurRadius: 2,
+                                    offset: Offset(-1, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      // Cursor
+                      SizedBox(
+                        width: titleFontSize * 0.5,
+                        child: AnimatedOpacity(
+                          opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 100),
+                          child: Text(
+                            "_",
+                            style: GoogleFonts.vt323(
+                              textStyle: TextStyle(
+                                fontSize: titleFontSize,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    
-                    // Footer Section - Safely positioned at bottom
-                    Padding(
-                      padding: EdgeInsets.only(
-                        left: screenWidth * 0.04,
-                        right: screenWidth * 0.04,
-                        bottom: screenHeight * 0.02,
+                    ],
+                  ),
+                  
+                  SizedBox(height: titleGap),
+                  
+                  Text(
+                    "> ECHO LOCATION PROTOCOL v2.1",
+                    style: GoogleFonts.vt323(
+                      textStyle: TextStyle(
+                        fontSize: subtitleFontSize,
+                        color: Colors.white38,
+                        letterSpacing: 4,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          // Developer credit
-                          Flexible(
-                            child: AnimatedBuilder(
-                              animation: _pulseController,
-                              builder: (context, child) {
-                                return Text(
-                                  "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
-                                  style: GoogleFonts.vt323(
-                                    textStyle: TextStyle(
-                                      color: const Color(0xFF4DF3FF).withValues(
-                                        alpha: 0.7 + (_pulseController.value * 0.3)
-                                      ),
-                                      fontSize: footerSize,
-                                      shadows: [
-                                        Shadow(
-                                          color: const Color(0xFF4DF3FF).withValues(alpha: 0.5),
-                                          blurRadius: 8,
-                                        )
-                                      ],
-                                    ),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                );
-                              },
-                            ),
-                          ),
-                          
-                          // Auth info
-                          Flexible(
-                            child: Text(
-                              "> auth: operator_01_",
-                              textAlign: TextAlign.end,
-                              style: GoogleFonts.vt323(
-                                textStyle: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: footerSize,
-                                ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: sectionGap),
+                  
+                  // Menu Items
+                  _TerminalMenuItem(
+                    text: 'INITIALIZE',
+                    fontSize: menuFontSize,
+                    onTap: () {
+                      _menuPlayer.stop();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const GamePage()),
+                      );
+                    },
+                  ),
+                  
+                  SizedBox(height: menuItemGap),
+                  
+                  _TerminalMenuItem(
+                    text: 'DATABASE',
+                    fontSize: menuFontSize,
+                    onTap: () => _showDatabase(context),
+                  ),
+                  
+                  SizedBox(height: menuItemGap),
+                  
+                  _TerminalMenuItem(
+                    text: 'CREDITS',
+                    fontSize: menuFontSize,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const CreditsScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            
+            // 5. Footer - anchored bottom, no overlap
+            Positioned(
+              left: footerPadding,
+              right: footerPadding,
+              bottom: footerPadding,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Developer credit
+                  Flexible(
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        return Text(
+                          "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
+                          style: GoogleFonts.vt323(
+                            textStyle: TextStyle(
+                              color: const Color(0xFF4DF3FF).withValues(
+                                alpha: 0.7 + (_pulseController.value * 0.3)
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              fontSize: footerFontSize,
+                              shadows: [
+                                Shadow(
+                                  color: const Color(0xFF4DF3FF).withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                )
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     ),
-                  ],
-                ),
-              ],
-            );
-          },
+                  ),
+                  
+                  // Auth info
+                  Flexible(
+                    child: Text(
+                      "> auth: operator_01_",
+                      textAlign: TextAlign.end,
+                      style: GoogleFonts.vt323(
+                        textStyle: TextStyle(
+                          color: Colors.white38,
+                          fontSize: footerFontSize,
+                        ),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

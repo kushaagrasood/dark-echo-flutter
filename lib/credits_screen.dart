@@ -20,200 +20,182 @@ class _CreditsScreenState extends State<CreditsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen dimensions
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Proportional font sizing - EVERYTHING scales
+    final titleFontSize = screenWidth * 0.08;
+    final subtitleFontSize = screenWidth * 0.024;
+    final labelFontSize = screenWidth * 0.03;
+    final nameFontSize = screenWidth * 0.055;
+    final clubFontSize = screenWidth * 0.045;
+    final buttonFontSize = screenWidth * 0.027;
+    
+    // Proportional spacing - scales with screen height
+    final smallGap = screenHeight * 0.01;
+    final mediumGap = screenHeight * 0.025;
+    final largeGap = screenHeight * 0.05;
+    final buttonGap = screenHeight * 0.06;
+    
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Responsive sizing
-            final screenHeight = constraints.maxHeight;
-            final screenWidth = constraints.maxWidth;
-            
-            // Adaptive spacing based on screen height
-            final double smallGap = screenHeight * 0.01; // 1% of height
-            final double mediumGap = screenHeight * 0.025; // 2.5% of height
-            final double largeGap = screenHeight * 0.06; // 6% of height
-            
-            // Adaptive font sizes based on screen width
-            final double titleSize = (screenWidth * 0.08).clamp(36.0, 52.0);
-            final double subtitleSize = (screenWidth * 0.03).clamp(16.0, 22.0);
-            final double nameSize = (screenWidth * 0.055).clamp(24.0, 36.0);
-            final double clubSize = (screenWidth * 0.045).clamp(20.0, 28.0);
-            final double buttonSize = (screenWidth * 0.035).clamp(18.0, 24.0);
-            
-            return Stack(
-              children: [
-                // 1. Background Gradient
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.center,
-                      radius: 1.2,
-                      colors: [Color(0xFF14141A), Color(0xFF020205)],
-                      stops: [0.2, 1.0],
+        child: Stack(
+          children: [
+            // 1. Background Gradient
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.2,
+                  colors: [Color(0xFF14141A), Color(0xFF020205)],
+                  stops: [0.2, 1.0],
+                ),
+              ),
+            ),
+
+            // 2. CRT Scanlines
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(painter: _ScanlinePainter()),
+              ),
+            ),
+
+            // 3. Content - NO SCROLL, everything fits proportionally
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title
+                  Text(
+                    "DARK ECHO",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                      textStyle: TextStyle(
+                        fontSize: titleFontSize,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                        shadows: const [
+                          Shadow(color: Color(0xFF4DF3FF), blurRadius: 15)
+                        ],
+                      ),
                     ),
                   ),
-                ),
-
-                // 2. CRT Scanlines
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(painter: _ScanlinePainter()),
-                  ),
-                ),
-
-                // 3. Scrollable Content
-                SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: screenHeight,
+                  
+                  SizedBox(height: smallGap),
+                  
+                  Text(
+                    "> SYSTEM ARCHITECTS",
+                    style: GoogleFonts.vt323(
+                      textStyle: TextStyle(
+                        fontSize: subtitleFontSize,
+                        color: Colors.white38,
+                        letterSpacing: 2,
+                      ),
                     ),
-                    child: IntrinsicHeight(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.08,
-                          vertical: screenHeight * 0.04,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Title
-                            Text(
-                              "DARK ECHO",
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.vt323(
-                                textStyle: TextStyle(
-                                  fontSize: titleSize,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 8,
-                                  shadows: const [
-                                    Shadow(color: Color(0xFF4DF3FF), blurRadius: 15)
-                                  ],
-                                ),
-                              ),
-                            ),
-                            
-                            SizedBox(height: smallGap),
-                            
-                            Text(
-                              "> SYSTEM ARCHITECTS",
-                              style: GoogleFonts.vt323(
-                                textStyle: TextStyle(
-                                  fontSize: subtitleSize,
-                                  color: Colors.white38,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                            ),
-                            
-                            SizedBox(height: largeGap),
-                            
-                            // Developer Section
-                            Text(
-                              "Developer:",
-                              style: GoogleFonts.vt323(
-                                textStyle: TextStyle(
-                                  fontSize: subtitleSize,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ),
-                            
-                            SizedBox(height: smallGap * 0.5),
-                            
-                            Text(
-                              "Kushaagra Sood",
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.vt323(
-                                textStyle: TextStyle(
-                                  fontSize: nameSize,
-                                  color: Colors.white,
-                                  shadows: const [
-                                    Shadow(color: Colors.blueAccent, blurRadius: 15)
-                                  ],
-                                ),
-                              ),
-                            ),
-                            
-                            SizedBox(height: mediumGap),
-                            
-                            Text(
-                              "Android Club VIT Chennai",
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.vt323(
-                                textStyle: TextStyle(
-                                  fontSize: clubSize,
-                                  color: Colors.white,
-                                  shadows: const [
-                                    Shadow(color: Colors.greenAccent, blurRadius: 15)
-                                  ],
-                                ),
-                              ),
-                            ),
-                            
-                            SizedBox(height: mediumGap * 1.2),
-                            
-                            // Links Row
-                            Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: 20,
-                              runSpacing: 10,
-                              children: [
-                                _TerminalLinkButton(
-                                  icon: Icons.code,
-                                  text: 'GITHUB',
-                                  fontSize: buttonSize,
-                                  onTap: () => _launchURL('https://github.com/kushaagrasood/'),
-                                ),
-                                _TerminalLinkButton(
-                                  icon: Icons.business,
-                                  text: 'LINKEDIN',
-                                  fontSize: buttonSize,
-                                  onTap: () => _launchURL('https://www.linkedin.com/in/kushaagrasood23/'),
-                                ),
-                              ],
-                            ),
-                            
-                            SizedBox(height: largeGap),
-                            
-                            // Back Button
-                            GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: screenWidth * 0.06,
-                                  vertical: screenHeight * 0.015,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white24),
-                                  color: Colors.white.withValues(alpha: 0.02),
-                                ),
-                                child: Text(
-                                  "[ RETURN ]",
-                                  style: GoogleFonts.vt323(
-                                    textStyle: TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: buttonSize,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            
-                            SizedBox(height: mediumGap),
-                          ],
+                  ),
+                  
+                  SizedBox(height: largeGap),
+                  
+                  // Developer Section
+                  Text(
+                    "Developer:",
+                    style: GoogleFonts.vt323(
+                      textStyle: TextStyle(
+                        fontSize: labelFontSize,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: smallGap * 0.5),
+                  
+                  Text(
+                    "Kushaagra Sood",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                      textStyle: TextStyle(
+                        fontSize: nameFontSize,
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(color: Colors.blueAccent, blurRadius: 15)
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: mediumGap),
+                  
+                  Text(
+                    "Android Club VIT Chennai",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vt323(
+                      textStyle: TextStyle(
+                        fontSize: clubFontSize,
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(color: Colors.greenAccent, blurRadius: 15)
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  SizedBox(height: mediumGap * 1.2),
+                  
+                  // Links Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _TerminalLinkButton(
+                        icon: Icons.code,
+                        text: 'GITHUB',
+                        fontSize: buttonFontSize,
+                        iconSize: buttonFontSize * 0.9,
+                        onTap: () => _launchURL('https://github.com/kushaagrasood/'),
+                      ),
+                      SizedBox(width: screenWidth * 0.03),
+                      _TerminalLinkButton(
+                        icon: Icons.business,
+                        text: 'LINKEDIN',
+                        fontSize: buttonFontSize,
+                        iconSize: buttonFontSize * 0.9,
+                        onTap: () => _launchURL('https://www.linkedin.com/in/kushaagrasood23/'),
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: buttonGap),
+                  
+                  // Back Button
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.06,
+                        vertical: screenHeight * 0.015,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white24),
+                        color: Colors.white.withValues(alpha: 0.02),
+                      ),
+                      child: Text(
+                        "[ RETURN ]",
+                        style: GoogleFonts.vt323(
+                          textStyle: TextStyle(
+                            color: Colors.white54,
+                            fontSize: buttonFontSize,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -224,12 +206,14 @@ class _TerminalLinkButton extends StatefulWidget {
   final IconData icon;
   final String text;
   final double fontSize;
+  final double iconSize;
   final VoidCallback onTap;
 
   const _TerminalLinkButton({
     required this.icon,
     required this.text,
     required this.fontSize,
+    required this.iconSize,
     required this.onTap,
   });
 
@@ -251,7 +235,10 @@ class _TerminalLinkButtonState extends State<_TerminalLinkButton> {
       onTapCancel: () => setState(() => _isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.fontSize * 0.7,
+          vertical: widget.fontSize * 0.4,
+        ),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -269,9 +256,9 @@ class _TerminalLinkButtonState extends State<_TerminalLinkButton> {
             Icon(
               widget.icon,
               color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white54,
-              size: widget.fontSize,
+              size: widget.iconSize,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: widget.fontSize * 0.4),
             Text(
               "[ ${widget.text} ]",
               style: GoogleFonts.vt323(
