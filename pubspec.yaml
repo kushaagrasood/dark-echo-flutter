@@ -26,6 +26,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -40,3 +41,8 @@ flutter:
     - assets/audio/breathing.ogg      # Death sequence - stage 1 (loud)
     - assets/audio/caught.ogg         # Death sequence - stage 2
     - assets/audio/victory.ogg        # Victory sound
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
