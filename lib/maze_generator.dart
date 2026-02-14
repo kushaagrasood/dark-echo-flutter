@@ -88,8 +88,12 @@ class MazeGenerator {
       
       // Knock down another random wall to create a bypass
       var w = walls[_rng.nextInt(walls.length)];
-      if (w.isHorizontal) hWalls[w.x][w.y] = false;
-      else vWalls[w.x][w.y] = false;
+      if (w.isHorizontal) {
+        hWalls[w.x][w.y] = false;
+      }
+      else {
+        vWalls[w.x][w.y] = false;
+      }
     }
   }
 
