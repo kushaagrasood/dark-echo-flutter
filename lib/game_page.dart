@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_joystick/flutter_joystick.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'game_model.dart';
 import 'game_painter.dart';
 import 'main_menu.dart';
+import 'arrow_controls.dart';
 
 class GamePage extends StatefulWidget {
   const GamePage({super.key});
@@ -17,13 +17,8 @@ class GamePage extends StatefulWidget {
 class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin {
   late GameModel _model;
   late Ticker _ticker;
-  Offset _joystickVelocity = Offset.zero;
+  Offset _inputVelocity = Offset.zero;
   Duration _lastTime = Duration.zero;
-
-  // Joystick tuning
-  static const double joystickDeadzone = 0.15;
-  static const double joystickSmoothingFactor = 0.85;
-  Offset _smoothedVelocity = Offset.zero;
 
   @override
   void initState() {
@@ -40,8 +35,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       setState(() {});
       
       if (_model.isGameOver || _model.isGameWon) {
-        _joystickVelocity = Offset.zero;
-        _smoothedVelocity = Offset.zero;
+        _inputVelocity = Offset.zero;
       }
     });
 
@@ -49,29 +43,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       double dt = (elapsed - _lastTime).inMicroseconds / 1000000.0;
       _lastTime = elapsed;
       
-      // Apply smoothing and deadzone to joystick input
-      Offset targetVelocity = _joystickVelocity;
-      
-      // Deadzone
-      if (targetVelocity.distance < joystickDeadzone) {
-        targetVelocity = Offset.zero;
-      } else {
-        // Remap from deadzone to 1.0
-        double magnitude = (targetVelocity.distance - joystickDeadzone) / (1.0 - joystickDeadzone);
-        magnitude = magnitude.clamp(0.0, 1.0);
-        targetVelocity = Offset(
-          targetVelocity.dx / targetVelocity.distance * magnitude,
-          targetVelocity.dy / targetVelocity.distance * magnitude,
-        );
-      }
-      
-      // Smooth interpolation
-      _smoothedVelocity = Offset(
-        _smoothedVelocity.dx * joystickSmoothingFactor + targetVelocity.dx * (1.0 - joystickSmoothingFactor),
-        _smoothedVelocity.dy * joystickSmoothingFactor + targetVelocity.dy * (1.0 - joystickSmoothingFactor),
-      );
-      
-      _model.velocity = _smoothedVelocity;
+      // Arrow controls provide clean digital input (no smoothing needed)
+      _model.velocity = _inputVelocity;
       _model.update(dt); 
     });
     
@@ -270,45 +243,17 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
             ),
 
           // 3. CONTROLS LAYER - constrained to specific areas
-          // Joystick (Bottom-left) - IMPROVED SIZE AND RESPONSIVENESS
+          // Arrow Controls (Bottom-left)
           if (!_model.isGameOver && !_model.isGameWon)
             Positioned(
-              bottom: 30,
-              left: 30,
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      blurRadius: 20,
-                      spreadRadius: 4,
-                    )
-                  ],
-                ),
-                child: Joystick(
-                  mode: JoystickMode.all,
-                  base: JoystickBase(
-                    size: 140, // Increased base size
-                    decoration: JoystickBaseDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      drawOuterCircle: true,
-                    ),
-                  ),
-                  stick: JoystickStick(
-                    size: 60, // Increased stick size
-                    decoration: JoystickStickDecoration(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      shadowColor: Colors.white.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  listener: (details) {
-                    // Raw input from joystick
-                    _joystickVelocity = Offset(details.x, details.y);
-                  },
-                ),
+              bottom: 20,
+              left: 20,
+              child: ArrowControls(
+                onDirectionChanged: (direction) {
+                  setState(() {
+                    _inputVelocity = direction;
+                  });
+                },
               ),
             ),
 
