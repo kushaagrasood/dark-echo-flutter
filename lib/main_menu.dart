@@ -102,36 +102,30 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // --- EXISTING DIALOG LOGIC (STYLED FOR CRT) ---
   void _showFirstTimeGuide() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => _buildTerminalDialog(
         title: '[ FIRST TRANSMISSION ]',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTerminalText('> Welcome, operator.\n'),
-            _buildTerminalText('> This is your first time accessing the system.\n'),
-            _buildTerminalText('> We recommend reviewing the DATABASE for mission briefing and controls.\n', color: const Color(0xFF4DF3FF)),
-            const SizedBox(height: 20),
-            _buildTerminalText('> Access [DATABASE] from the main menu for complete intel.\n', color: Colors.white54, isItalic: true),
-          ],
-        ),
+        children: [
+          _buildTerminalText('> Welcome, operator.\n'),
+          _buildTerminalText('> This is your first time accessing the system.\n'),
+          _buildTerminalText('> We recommend reviewing the DATABASE for mission briefing and controls.\n', color: Colors.greenAccent),
+          const SizedBox(height: 20),
+          _buildTerminalText('> Access [DATABASE] from the main menu for complete intel.\n', isItalic: true),
+        ],
         actions: [
-          _TerminalTextButton(
-            text: 'OPEN DATABASE',
-            onTap: () {
+          TextButton(
+            onPressed: () {
               Navigator.pop(context);
               _showDatabase(context);
             },
-            isCyan: true,
+            child: Text('[ OPEN DATABASE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 20))),
           ),
-          _TerminalTextButton(
-            text: 'SKIP',
-            onTap: () => Navigator.pop(context),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('[ SKIP ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white54, fontSize: 20))),
           ),
         ],
       ),
@@ -143,60 +137,65 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
       context: context,
       builder: (context) => _buildTerminalDialog(
         title: '[ DATABASE ACCESS ]',
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDatabaseSection('MISSION BRIEFING:', [
-                '> Navigate through procedurally generated mazes',
-                '> Locate the GREEN EXIT to complete extraction',
-                '> Avoid detection by hostile entities',
-                '> Time is being monitored',
-              ]),
-              const SizedBox(height: 20),
-              _buildDatabaseSection('CONTROLS:', [
-                '> ARROWS: Movement control',
-                '> RIGHT BUTTON [PING]: Emit sonar wave',
-                '> PING reveals walls temporarily',
-                '> Limited PING charges per mission',
-              ]),
-              const SizedBox(height: 20),
-              _buildDatabaseSection('THREAT ASSESSMENT:', [
-                '> RED entities are hostile',
-                '> They respond to sound (PINGs)',
-                '> They have limited vision range',
-                '> Contact means mission failure',
-              ]),
-              const SizedBox(height: 20),
-              _buildDatabaseSection('AUDIO INDICATORS:', [
-                '> Footsteps: Enemy proximity warning',
-                '> Heartbeat: Danger level indicator',
-                '> Faster = Closer threat',
-              ]),
-            ],
-          ),
-        ),
+        children: [
+          _buildDatabaseSection('MISSION BRIEFING:', [
+            '> Navigate through procedurally generated mazes',
+            '> Locate the GREEN EXIT to complete extraction',
+            '> Avoid detection by hostile entities',
+            '> Time is being monitored',
+          ]),
+          const SizedBox(height: 15),
+          _buildDatabaseSection('CONTROLS:', [
+            '> ARROW KEYS: Movement control',
+            '> RIGHT BUTTON [PING]: Emit sonar wave',
+            '> PING reveals walls temporarily',
+            '> Limited PING charges per mission',
+          ]),
+          const SizedBox(height: 15),
+          _buildDatabaseSection('THREAT ASSESSMENT:', [
+            '> RED entities are hostile',
+            '> They respond to sound (PINGs)',
+            '> They have limited vision range',
+            '> Contact means mission failure',
+          ]),
+          const SizedBox(height: 15),
+          _buildDatabaseSection('AUDIO INDICATORS:', [
+            '> Footsteps: Enemy proximity warning',
+            '> Heartbeat: Danger level indicator',
+            '> Faster = Closer threat',
+          ]),
+          const SizedBox(height: 15),
+          _buildDatabaseSection('DIFFICULTY MODES:', [
+            '> EASY: Slower enemies, more PINGs',
+            '> MEDIUM: Balanced challenge',
+            '> HARD: Fast enemies, limited PINGs',
+          ]),
+        ],
         actions: [
-          _TerminalTextButton(
-            text: 'CLOSE',
-            onTap: () => Navigator.pop(context),
-            isCyan: true,
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('[ CLOSE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white54, fontSize: 24))),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTerminalDialog({required String title, required Widget content, required List<Widget> actions}) {
+  Widget _buildTerminalDialog({required String title, required List<Widget> children, required List<Widget> actions}) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFF0A0A0A),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.zero,
-        side: BorderSide(color: Color(0xFF4DF3FF), width: 1),
+        side: BorderSide(color: Colors.white24, width: 2),
       ),
-      title: Text(title, style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 28, shadows: [Shadow(color: Color(0xFF4DF3FF), blurRadius: 10)]))),
-      content: content,
+      title: Text(title, style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white, fontSize: 28))),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      ),
       actions: actions,
     );
   }
@@ -219,154 +218,310 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F), // Dark charcoal
-      body: Stack(
-        children: [
-          // 1. Background Gradient & Vignette
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.center,
-                radius: 1.2,
-                colors: [Color(0xFF14141A), Color(0xFF020205)],
-                stops: [0.2, 1.0],
-              ),
-            ),
-          ),
-
-          // 2. CRT Scanlines (Lightweight CustomPainter)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(painter: _ScanlinePainter()),
-            ),
-          ),
-
-          // 3. Flicker Overlay
-          AnimatedBuilder(
-            animation: _flickerController,
-            builder: (context, child) {
-              return Container(
-                color: Colors.white.withValues(alpha: _flickerController.value * 0.05),
-              );
-            },
-          ),
-
-          // 4. Main UI
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: const Color(0xFF0A0A0F),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Responsive sizing
+            final screenHeight = constraints.maxHeight;
+            final screenWidth = constraints.maxWidth;
+            
+            // Adaptive spacing
+            final double smallGap = screenHeight * 0.01;
+            final double mediumGap = screenHeight * 0.02;
+            final double largeGap = screenHeight * 0.08;
+            
+            // Adaptive font sizes
+            final double titleSize = (screenWidth * 0.12).clamp(48.0, 72.0);
+            final double subtitleSize = (screenWidth * 0.03).clamp(14.0, 18.0);
+            final double menuSize = (screenWidth * 0.04).clamp(20.0, 28.0);
+            final double footerSize = (screenWidth * 0.03).clamp(14.0, 18.0);
+            
+            return Stack(
               children: [
-                // Animated Title (Jitter Fixed)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return Text(
-                          _displayedTitle,
-                          style: GoogleFonts.vt323(
-                            textStyle: TextStyle(
-                              fontSize: 72,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 12,
-                              shadows: [
-                                Shadow(
-                                  color: const Color(0xFF4DF3FF).withValues(alpha: 0.5 + (_pulseController.value * 0.3)),
-                                  blurRadius: 15 + (_pulseController.value * 10),
-                                ),
-                                const Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-1, 1)),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                // 1. Background Gradient
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.2,
+                      colors: [Color(0xFF14141A), Color(0xFF020205)],
+                      stops: [0.2, 1.0],
                     ),
-                    // Fixed-width blinking cursor to prevent layout shift
-                    SizedBox(
-                      width: 40,
-                      child: AnimatedOpacity(
-                        opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 100),
-                        child: Text(
-                          "_",
-                          style: GoogleFonts.vt323(
-                            textStyle: const TextStyle(
-                              fontSize: 72,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                // 2. CRT Scanlines
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(painter: _ScanlinePainter()),
+                  ),
+                ),
+
+                // 3. Flicker Overlay
+                AnimatedBuilder(
+                  animation: _flickerController,
+                  builder: (context, child) {
+                    return Container(
+                      color: Colors.white.withValues(alpha: _flickerController.value * 0.05),
+                    );
+                  },
+                ),
+
+                // 4. Main Content - Properly centered with flexible spacing
+                Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.08,
+                              vertical: screenHeight * 0.05,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Animated Title
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: AnimatedBuilder(
+                                        animation: _pulseController,
+                                        builder: (context, child) {
+                                          return Text(
+                                            _displayedTitle,
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.vt323(
+                                              textStyle: TextStyle(
+                                                fontSize: titleSize,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: screenWidth * 0.02,
+                                                shadows: [
+                                                  Shadow(
+                                                    color: const Color(0xFF4DF3FF).withValues(
+                                                      alpha: 0.5 + (_pulseController.value * 0.3)
+                                                    ),
+                                                    blurRadius: 15 + (_pulseController.value * 10),
+                                                  ),
+                                                  const Shadow(
+                                                    color: Colors.white70,
+                                                    blurRadius: 2,
+                                                    offset: Offset(-1, 1),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    // Cursor
+                                    SizedBox(
+                                      width: titleSize * 0.5,
+                                      child: AnimatedOpacity(
+                                        opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
+                                        duration: const Duration(milliseconds: 100),
+                                        child: Text(
+                                          "_",
+                                          style: GoogleFonts.vt323(
+                                            textStyle: TextStyle(
+                                              fontSize: titleSize,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                
+                                SizedBox(height: smallGap),
+                                
+                                Text(
+                                  "> ECHO LOCATION PROTOCOL v2.1",
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.vt323(
+                                    textStyle: TextStyle(
+                                      fontSize: subtitleSize,
+                                      color: Colors.white38,
+                                      letterSpacing: 4,
+                                    ),
+                                  ),
+                                ),
+                                
+                                SizedBox(height: largeGap),
+                                
+                                // Menu Items
+                                _TerminalMenuItem(
+                                  text: 'INITIALIZE',
+                                  fontSize: menuSize,
+                                  onTap: () {
+                                    _menuPlayer.stop();
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const GamePage()),
+                                    );
+                                  },
+                                ),
+                                
+                                SizedBox(height: mediumGap),
+                                
+                                _TerminalMenuItem(
+                                  text: 'DATABASE',
+                                  fontSize: menuSize,
+                                  onTap: () => _showDatabase(context),
+                                ),
+                                
+                                SizedBox(height: mediumGap),
+                                
+                                _TerminalMenuItem(
+                                  text: 'CREDITS',
+                                  fontSize: menuSize,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const CreditsScreen()),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ),
+                    
+                    // Footer Section - Safely positioned at bottom
+                    Padding(
+                      padding: EdgeInsets.only(
+                        left: screenWidth * 0.04,
+                        right: screenWidth * 0.04,
+                        bottom: screenHeight * 0.02,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Developer credit
+                          Flexible(
+                            child: AnimatedBuilder(
+                              animation: _pulseController,
+                              builder: (context, child) {
+                                return Text(
+                                  "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
+                                  style: GoogleFonts.vt323(
+                                    textStyle: TextStyle(
+                                      color: const Color(0xFF4DF3FF).withValues(
+                                        alpha: 0.7 + (_pulseController.value * 0.3)
+                                      ),
+                                      fontSize: footerSize,
+                                      shadows: [
+                                        Shadow(
+                                          color: const Color(0xFF4DF3FF).withValues(alpha: 0.5),
+                                          blurRadius: 8,
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
+                            ),
+                          ),
+                          
+                          // Auth info
+                          Flexible(
+                            child: Text(
+                              "> auth: operator_01_",
+                              textAlign: TextAlign.end,
+                              style: GoogleFonts.vt323(
+                                textStyle: TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: footerSize,
+                                ),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                
-                const SizedBox(height: 8),
-                Text(
-                  "> ECHO LOCATION PROTOCOL v2.1",
-                  style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 18, color: Colors.white38, letterSpacing: 4)),
-                ),
-                
-                const SizedBox(height: 60),
-                
-                // Vertical Terminal Menu
-                _TerminalMenuItem(
-                  text: 'INITIALIZE',
-                  onTap: () {
-                    _menuPlayer.stop(); 
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const GamePage()));
-                  },
-                ),
-                const SizedBox(height: 15),
-                _TerminalMenuItem(
-                  text: 'DATABASE',
-                  onTap: () => _showDatabase(context),
-                ),
-                const SizedBox(height: 15),
-                _TerminalMenuItem(
-                  text: 'CREDITS',
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const CreditsScreen()));
-                  },
-                ),
               ],
-            ),
-          ),
-          
-          // 5. Developer Section (Bottom Left)
-          Positioned(
-            bottom: 20,
-            left: 20,
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return Text(
-                  "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
-                  style: GoogleFonts.vt323(
-                    textStyle: TextStyle(
-                      color: const Color(0xFF4DF3FF).withValues(alpha: 0.7 + (_pulseController.value * 0.3)),
-                      fontSize: 18,
-                      shadows: [Shadow(color: const Color(0xFF4DF3FF).withValues(alpha: 0.5), blurRadius: 8)],
-                    ),
-                  ),
-                );
-              }
-            ),
-          ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
 
-          // 6. Auth Info (Bottom Right)
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: Text(
-              "> auth: operator_01_",
-              style: GoogleFonts.vt323(textStyle: const TextStyle(color: Colors.white38, fontSize: 16)),
+// --- TERMINAL MENU ITEM ---
+class _TerminalMenuItem extends StatefulWidget {
+  final String text;
+  final double fontSize;
+  final VoidCallback onTap;
+
+  const _TerminalMenuItem({
+    required this.text,
+    required this.fontSize,
+    required this.onTap,
+  });
+
+  @override
+  State<_TerminalMenuItem> createState() => _TerminalMenuItemState();
+}
+
+class _TerminalMenuItemState extends State<_TerminalMenuItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isHovered = true),
+      onTapUp: (_) {
+        setState(() => _isHovered = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.fontSize * 1.5,
+          vertical: widget.fontSize * 0.4,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white24,
+              width: 3,
             ),
           ),
-        ],
+          color: _isHovered
+              ? const Color(0xFF4DF3FF).withValues(alpha: 0.1)
+              : Colors.transparent,
+        ),
+        child: Text(
+          "> [ ${widget.text} ]",
+          style: GoogleFonts.vt323(
+            textStyle: TextStyle(
+              fontSize: widget.fontSize,
+              color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white70,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 3,
+              shadows: _isHovered
+                  ? const [Shadow(color: Color(0xFF4DF3FF), blurRadius: 12)]
+                  : [],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -385,83 +540,7 @@ class _ScanlinePainter extends CustomPainter {
       canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
     }
   }
+  
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// --- INTERACTIVE TERMINAL MENU ITEM ---
-class _TerminalMenuItem extends StatefulWidget {
-  final String text;
-  final VoidCallback onTap;
-
-  const _TerminalMenuItem({required this.text, required this.onTap});
-
-  @override
-  State<_TerminalMenuItem> createState() => _TerminalMenuItemState();
-}
-
-class _TerminalMenuItemState extends State<_TerminalMenuItem> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isHovered = true),
-      onTapUp: (_) {
-        setState(() => _isHovered = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _isHovered = false),
-      child: AnimatedScale(
-        scale: _isHovered ? 1.05 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          color: Colors.transparent, // Keeps tap target large
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _isHovered ? "> " : "  ",
-                style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 26)),
-              ),
-              Text(
-                "[ ${widget.text} ]",
-                style: GoogleFonts.vt323(
-                  textStyle: TextStyle(
-                    color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white60,
-                    fontSize: 26,
-                    shadows: _isHovered ? const [Shadow(color: Color(0xFF4DF3FF), blurRadius: 10)] : [],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// --- DIALOG BUTTON ---
-class _TerminalTextButton extends StatelessWidget {
-  final String text;
-  final VoidCallback onTap;
-  final bool isCyan;
-
-  const _TerminalTextButton({required this.text, required this.onTap, this.isCyan = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      child: Text(
-        '[ $text ]',
-        style: GoogleFonts.vt323(
-          textStyle: TextStyle(color: isCyan ? const Color(0xFF4DF3FF) : Colors.white54, fontSize: 20),
-        ),
-      ),
-    );
-  }
 }
