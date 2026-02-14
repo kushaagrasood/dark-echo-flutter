@@ -20,6 +20,11 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
   Offset _joystickVelocity = Offset.zero;
   Duration _lastTime = Duration.zero;
 
+  // Joystick tuning
+  static const double joystickDeadzone = 0.15;
+  static const double joystickSmoothingFactor = 0.85;
+  Offset _smoothedVelocity = Offset.zero;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +41,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       
       if (_model.isGameOver || _model.isGameWon) {
         _joystickVelocity = Offset.zero;
+        _smoothedVelocity = Offset.zero;
       }
     });
 
@@ -43,7 +49,29 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       double dt = (elapsed - _lastTime).inMicroseconds / 1000000.0;
       _lastTime = elapsed;
       
-      _model.velocity = _joystickVelocity;
+      // Apply smoothing and deadzone to joystick input
+      Offset targetVelocity = _joystickVelocity;
+      
+      // Deadzone
+      if (targetVelocity.distance < joystickDeadzone) {
+        targetVelocity = Offset.zero;
+      } else {
+        // Remap from deadzone to 1.0
+        double magnitude = (targetVelocity.distance - joystickDeadzone) / (1.0 - joystickDeadzone);
+        magnitude = magnitude.clamp(0.0, 1.0);
+        targetVelocity = Offset(
+          targetVelocity.dx / targetVelocity.distance * magnitude,
+          targetVelocity.dy / targetVelocity.distance * magnitude,
+        );
+      }
+      
+      // Smooth interpolation
+      _smoothedVelocity = Offset(
+        _smoothedVelocity.dx * joystickSmoothingFactor + targetVelocity.dx * (1.0 - joystickSmoothingFactor),
+        _smoothedVelocity.dy * joystickSmoothingFactor + targetVelocity.dy * (1.0 - joystickSmoothingFactor),
+      );
+      
+      _model.velocity = _smoothedVelocity;
       _model.update(dt); 
     });
     
@@ -209,24 +237,29 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5), width: 1),
+                    border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1),
                     color: Colors.black.withValues(alpha: 0.6),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.circle,
-                        color: Colors.cyanAccent,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 6),
                       Text(
-                        'PINGS: ${_model.currentEchoCharges}',
+                        'PING:',
                         style: GoogleFonts.vt323(
                           textStyle: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ...List.generate(_model.currentEchoCharges, (index) => 
+                        Padding(
+                          padding: const EdgeInsets.only(left: 2),
+                          child: Icon(
+                            Icons.circle,
+                            size: 12,
                             color: Colors.cyanAccent,
-                            fontSize: 20,
                           ),
                         ),
                       ),
@@ -236,24 +269,45 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 3. CONTROLS LAYER (Positioned, NOT full-screen)
-          // Static Joystick with Increased Touch Area (Bottom-left)
+          // 3. CONTROLS LAYER - constrained to specific areas
+          // Joystick (Bottom-left) - IMPROVED SIZE AND RESPONSIVENESS
           if (!_model.isGameOver && !_model.isGameWon)
             Positioned(
-              bottom: 20,
-              left: 20,
+              bottom: 30,
+              left: 30,
               child: Container(
-                width: 140, // Increased touch area
+                width: 140,
                 height: 140,
-                alignment: Alignment.center,
-                child: Opacity(
-                  opacity: 0.4,
-                  child: Joystick(
-                    mode: JoystickMode.all,
-                    listener: (details) {
-                      _joystickVelocity = Offset(details.x, details.y);
-                    },
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      blurRadius: 20,
+                      spreadRadius: 4,
+                    )
+                  ],
+                ),
+                child: Joystick(
+                  mode: JoystickMode.all,
+                  base: JoystickBase(
+                    size: 140, // Increased base size
+                    decoration: JoystickBaseDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      drawOuterCircle: true,
+                    ),
                   ),
+                  stick: JoystickStick(
+                    size: 60, // Increased stick size
+                    decoration: JoystickStickDecoration(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      shadowColor: Colors.white.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  listener: (details) {
+                    // Raw input from joystick
+                    _joystickVelocity = Offset(details.x, details.y);
+                  },
                 ),
               ),
             ),

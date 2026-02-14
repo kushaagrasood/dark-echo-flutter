@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'game_page.dart';
+import 'credits_screen.dart';
 
 class MainMenu extends StatefulWidget {
   const MainMenu({super.key});
@@ -320,18 +321,47 @@ class _MainMenuState extends State<MainMenu> {
             ),
           ),
           
-          // Developer credit - Bottom Left
+          // Developer credit & Credits button - Bottom Left
           Positioned(
             bottom: 20,
             left: 20,
-            child: Text(
-              "> dev: kushaagra_sood",
-              style: GoogleFonts.vt323(
-                textStyle: const TextStyle(
-                  color: Colors.white38,
-                  fontSize: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "> dev: kushaagra_sood",
+                  style: GoogleFonts.vt323(
+                    textStyle: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CreditsScreen()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white24, width: 1),
+                    ),
+                    child: Text(
+                      "[ CREDITS ]",
+                      style: GoogleFonts.vt323(
+                        textStyle: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           
