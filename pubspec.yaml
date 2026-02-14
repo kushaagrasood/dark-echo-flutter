@@ -1,7 +1,7 @@
 name: dark_echo
 description: A 2D survival horror game with echolocation mechanics
 publish_to: 'none'
-version: 2.1.0
+version: 1.0.0
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
