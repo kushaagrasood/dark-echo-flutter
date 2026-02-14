@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_joystick/flutter_joystick.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'game_model.dart';
 import 'game_painter.dart';
@@ -20,11 +19,18 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
   Offset _joystickVelocity = Offset.zero;
   Duration _lastTime = Duration.zero;
 
+  // Dynamic joystick
+  Offset? _joystickAnchor;
+  Offset? _joystickThumb;
+  bool _joystickActive = false;
+  final double _joystickRadius = 60.0;
+  final double _joystickDeadzone = 0.15;
+  double _joystickOpacity = 0.0;
+
   @override
   void initState() {
     super.initState();
     
-    // Force landscape orientation
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
@@ -35,9 +41,11 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     _model.addListener(() {
       setState(() {});
       
-      // Reset joystick when game ends
       if (_model.isGameOver || _model.isGameWon) {
         _joystickVelocity = Offset.zero;
+        _joystickActive = false;
+        _joystickAnchor = null;
+        _joystickThumb = null;
       }
     });
 
@@ -46,7 +54,24 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       _lastTime = elapsed;
       
       _model.velocity = _joystickVelocity;
-      _model.update(dt); 
+      _model.update(dt);
+      
+      // Fade out joystick when not in use
+      if (_joystickActive) {
+        if (_joystickOpacity < 1.0) {
+          setState(() {
+            _joystickOpacity += dt * 3.0;
+            if (_joystickOpacity > 1.0) _joystickOpacity = 1.0;
+          });
+        }
+      } else {
+        if (_joystickOpacity > 0.0) {
+          setState(() {
+            _joystickOpacity -= dt * 2.0;
+            if (_joystickOpacity < 0.0) _joystickOpacity = 0.0;
+          });
+        }
+      }
     });
     
     _ticker.start();
@@ -54,7 +79,6 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
-    // Reset orientation when leaving
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -65,6 +89,58 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     _ticker.dispose();
     _model.dispose();
     super.dispose();
+  }
+
+  void _handleJoystickStart(Offset globalPosition) {
+    if (_model.isGameOver || _model.isGameWon) return;
+    
+    setState(() {
+      _joystickActive = true;
+      _joystickAnchor = globalPosition;
+      _joystickThumb = globalPosition;
+    });
+  }
+
+  void _handleJoystickUpdate(Offset globalPosition) {
+    if (!_joystickActive || _joystickAnchor == null) return;
+    
+    setState(() {
+      Offset delta = globalPosition - _joystickAnchor!;
+      
+      // Constrain thumb within joystick radius
+      if (delta.distance > _joystickRadius) {
+        delta = (delta / delta.distance) * _joystickRadius;
+      }
+      
+      _joystickThumb = _joystickAnchor! + delta;
+      
+      // Apply deadzone
+      double normalizedDistance = delta.distance / _joystickRadius;
+      if (normalizedDistance < _joystickDeadzone) {
+        _joystickVelocity = Offset.zero;
+      } else {
+        // Smooth interpolation
+        double scaledDistance = (normalizedDistance - _joystickDeadzone) / (1.0 - _joystickDeadzone);
+        _joystickVelocity = (delta / delta.distance) * scaledDistance;
+      }
+    });
+  }
+
+  void _handleJoystickEnd() {
+    setState(() {
+      _joystickActive = false;
+      _joystickVelocity = Offset.zero;
+      
+      // Don't immediately clear anchor/thumb for fade-out animation
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!_joystickActive) {
+          setState(() {
+            _joystickAnchor = null;
+            _joystickThumb = null;
+          });
+        }
+      });
+    });
   }
 
   void _showDifficultyMenu() {
@@ -135,7 +211,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       backgroundColor: const Color(0xFF050505),
       body: Stack(
         children: [
-          // 1. The Game Layer
+          // 1. Game Layer
           Positioned.fill(
             child: CustomPaint(
               painter: GamePainter(_model),
@@ -179,7 +255,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 3. Live Timer HUD (Top-center)
+          // 3. Timer (Top-center)
           if (!_model.isGameOver && !_model.isGameWon)
             Positioned(
               top: 20,
@@ -200,7 +276,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 4. Echo Charges Indicator (Top-right)
+          // 4. Echo Charges (Top-right)
           if (!_model.isGameOver && !_model.isGameWon)
             Positioned(
               top: 20,
@@ -234,21 +310,30 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 5. Controls Layer
-          if (!_model.isGameOver && !_model.isGameWon) ...[
-            Positioned(
-              bottom: 40,
-              left: 40,
-              child: Opacity(
-                opacity: 0.4, // Reduced opacity to 40%
-                child: Joystick(
-                  mode: JoystickMode.all,
-                  listener: (details) {
-                    _joystickVelocity = Offset(details.x, details.y);
-                  },
-                ),
+          // 5. Dynamic Joystick
+          if (!_model.isGameOver && !_model.isGameWon)
+            GestureDetector(
+              onPanStart: (details) => _handleJoystickStart(details.globalPosition),
+              onPanUpdate: (details) => _handleJoystickUpdate(details.globalPosition),
+              onPanEnd: (_) => _handleJoystickEnd(),
+              behavior: HitTestBehavior.translucent,
+              child: Container(
+                color: Colors.transparent,
+                child: _joystickAnchor != null
+                    ? CustomPaint(
+                        painter: _DynamicJoystickPainter(
+                          anchor: _joystickAnchor!,
+                          thumb: _joystickThumb ?? _joystickAnchor!,
+                          radius: _joystickRadius,
+                          opacity: _joystickOpacity,
+                        ),
+                      )
+                    : null,
               ),
             ),
+
+          // 6. Ping Button
+          if (!_model.isGameOver && !_model.isGameWon)
             Positioned(
               bottom: 40,
               right: 40,
@@ -283,9 +368,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-          ],
 
-          // 6. HORROR Game Over Overlay (Loss)
+          // 7. Game Over Screen
           if (_model.isGameOver)
             Container(
               decoration: BoxDecoration(
@@ -363,7 +447,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
-          // 7. Cinematic You Escaped Overlay (Win)
+          // 8. Victory Screen
           if (_model.isGameWon)
             Container(
               color: Colors.black.withValues(alpha: 0.9),
@@ -437,5 +521,58 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
         ],
       ),
     );
+  }
+}
+
+// Custom Painter for Dynamic Joystick
+class _DynamicJoystickPainter extends CustomPainter {
+  final Offset anchor;
+  final Offset thumb;
+  final double radius;
+  final double opacity;
+
+  _DynamicJoystickPainter({
+    required this.anchor,
+    required this.thumb,
+    required this.radius,
+    required this.opacity,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Base circle
+    final basePaint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity * 0.15)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(anchor, radius, basePaint);
+
+    final borderPaint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity * 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    canvas.drawCircle(anchor, radius, borderPaint);
+
+    // Thumb
+    final thumbPaint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity * 0.5)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(thumb, 25.0, thumbPaint);
+
+    final thumbBorderPaint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity * 0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    canvas.drawCircle(thumb, 25.0, thumbBorderPaint);
+  }
+
+  @override
+  bool shouldRepaint(_DynamicJoystickPainter oldDelegate) {
+    return oldDelegate.thumb != thumb || 
+           oldDelegate.anchor != anchor ||
+           oldDelegate.opacity != opacity;
   }
 }

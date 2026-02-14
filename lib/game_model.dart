@@ -34,38 +34,38 @@ class DifficultyConfig {
     switch (level) {
       case Difficulty.easy:
         return const DifficultyConfig(
-          botSpeedMultiplier: 0.64, // Reduced by 20% from 0.8
+          botSpeedMultiplier: 0.64,
           hearingRadius: 300.0,
           loopPercentage: 0.25, 
           maxEchoCharges: 5,
           searchDuration: 6.0, 
           panicRadius: 100.0, 
-          mazeCellSize: 60.0, // Increased for landscape
-          gridWidth: 12, // Landscape dimensions
+          mazeCellSize: 60.0,
+          gridWidth: 12,
           gridHeight: 7,
         );
       case Difficulty.medium:
         return const DifficultyConfig(
-          botSpeedMultiplier: 0.8, // Reduced by 20% from 1.0
+          botSpeedMultiplier: 0.8,
           hearingRadius: 400.0,
           loopPercentage: 0.15,
           maxEchoCharges: 3,
           searchDuration: 4.0,
           panicRadius: 150.0,
-          mazeCellSize: 50.0, // Adjusted for landscape
-          gridWidth: 14, // Landscape dimensions
+          mazeCellSize: 50.0,
+          gridWidth: 14,
           gridHeight: 8,
         );
       case Difficulty.hard:
         return const DifficultyConfig(
-          botSpeedMultiplier: 0.92, // Reduced by 20% from 1.15
+          botSpeedMultiplier: 0.92,
           hearingRadius: 550.0,
           loopPercentage: 0.05, 
           maxEchoCharges: 2,
           searchDuration: 2.5, 
           panicRadius: 200.0, 
-          mazeCellSize: 40.0, // Adjusted for landscape
-          gridWidth: 18, // Landscape dimensions
+          mazeCellSize: 40.0,
+          gridWidth: 18,
           gridHeight: 10,
         );
     }
@@ -77,7 +77,7 @@ class EchoWave {
   Offset center;
   double radius;
   double opacity;
-  final double maxRadius = 400.0; // Maximum travel distance
+  final double maxRadius = 400.0;
 
   EchoWave({required this.center, this.radius = 0.0, this.opacity = 1.0});
 }
@@ -103,6 +103,9 @@ class Bot {
   // Pathfinding
   List<Point<int>> currentPath = [];
   int currentPathIndex = 0;
+
+  // Anti-corner trap
+  double hesitationTimer = 0.0;
 
   Bot({
     required this.position,
@@ -133,14 +136,17 @@ class GameModel extends ChangeNotifier {
   late List<List<Offset>> walls; 
   final Offset mazeOffset = const Offset(20, 40); 
 
-  // Store wall reveal info for whole-wall rendering
-  Map<int, double> wallRevealTimers = {}; // wallIndex -> remainingTime
+  // Camera follow
+  Offset cameraOffset = Offset.zero;
+  Offset cameraTarget = Offset.zero;
+  final double cameraLag = 0.15;
+
+  Map<int, double> wallRevealTimers = {};
   Set<int> currentlyHitWalls = {};
 
   List<EchoWave> waves = [];
   late List<Bot> bots; 
 
-  // Store maze generator for pathfinding
   late MazeGenerator mazeGenerator;
 
   Offset velocity = Offset.zero; 
@@ -149,21 +155,28 @@ class GameModel extends ChangeNotifier {
   final double acceleration = 800.0;
   final double friction = 600.0;
 
+  // Audio players - consolidated
   final AudioPlayer _bgmPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _footstepsPlayer = AudioPlayer();
   final AudioPlayer _heartbeatPlayer = AudioPlayer(); 
   final AudioPlayer _breathingPlayer = AudioPlayer(); 
   final AudioPlayer _jumpscarePlayer = AudioPlayer();
+  final AudioPlayer _tensionPlayer = AudioPlayer();
   
   bool _isFootstepsPlaying = false;
   bool _isHeartbeatPlaying = false;
+  bool _isTensionPlaying = false;
   double _currentHeartbeatVolume = 0.0;
+  double _currentTensionVolume = 0.0;
+  double _currentBgmVolume = 1.0;
 
   double visualPulseIntensity = 0.0;
   double _pulseTimer = 0.0;
 
-  // Display bounds for landscape (800x450 with margin)
+  // Visual panic layer
+  double panicIntensity = 0.0;
+
   final double displayWidth = 760.0;
   final double displayHeight = 410.0;
 
@@ -219,12 +232,18 @@ class GameModel extends ChangeNotifier {
         botCell.y * config.mazeCellSize + (config.mazeCellSize / 2)
       ))
     ];
+
+    cameraOffset = Offset.zero;
+    cameraTarget = Offset.zero;
   }
 
   void _initAudio() async {
     await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
     await _footstepsPlayer.setReleaseMode(ReleaseMode.loop);
     await _heartbeatPlayer.setReleaseMode(ReleaseMode.loop);
+    await _tensionPlayer.setReleaseMode(ReleaseMode.loop);
+    
+    await _bgmPlayer.setVolume(1.0);
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
   }
 
@@ -236,6 +255,7 @@ class GameModel extends ChangeNotifier {
     _heartbeatPlayer.dispose();
     _breathingPlayer.dispose();
     _jumpscarePlayer.dispose();
+    _tensionPlayer.dispose();
     super.dispose();
   }
 
@@ -257,7 +277,7 @@ class GameModel extends ChangeNotifier {
       caughtTimer += dt;
       if (caughtTimer >= 1.0) {
         isGameOver = true; 
-        _jumpscarePlayer.play(AssetSource('audio/FAAHH.ogg')); // Changed audio
+        _jumpscarePlayer.play(AssetSource('audio/caught.ogg'));
         notifyListeners();
       }
       return; 
@@ -265,11 +285,10 @@ class GameModel extends ChangeNotifier {
 
     elapsedMilliseconds += (dt * 1000).toInt();
 
-    // 1. Update Waves with quality deterioration
+    // 1. Update Waves
     for (int i = waves.length - 1; i >= 0; i--) {
-      waves[i].radius += 200 * dt; // Faster wave propagation
+      waves[i].radius += 200 * dt;
       
-      // Quality deteriorates over distance
       double distanceFactor = (waves[i].radius / waves[i].maxRadius).clamp(0.0, 1.0);
       waves[i].opacity = (1.0 - distanceFactor) * (1.0 - (waves[i].radius / 600.0));
       
@@ -278,19 +297,17 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // Update wall reveal timers
     Set<int> currentHits = {};
     for (var wave in waves) {
       for (int wallIdx = 0; wallIdx < walls.length; wallIdx++) {
         if (_isWaveHittingWall(wave, walls[wallIdx])) {
           currentHits.add(wallIdx);
-          wallRevealTimers[wallIdx] = 1.0; // Reset timer to 1 second
+          wallRevealTimers[wallIdx] = 1.0;
         }
       }
     }
     currentlyHitWalls = currentHits;
 
-    // Decay timers
     List<int> toRemove = [];
     wallRevealTimers.forEach((wallIdx, timer) {
       wallRevealTimers[wallIdx] = timer - dt;
@@ -336,20 +353,29 @@ class GameModel extends ChangeNotifier {
       _actualVelocity = Offset(_actualVelocity.dx, 0); 
     }
 
-    // 3. Audio & AI
+    // 3. Camera Follow
+    cameraTarget = playerPos - Offset(400, 225);
+    cameraOffset += (cameraTarget - cameraOffset) * cameraLag;
+
+    // 4. Audio Management
     double botDist = (bots[0].position - playerPos).distance;
+    bool isChasing = bots[0].state == BotState.chasing;
     
-    // Footsteps
-    double hearingThreshold = 300.0; 
-    if (botDist < hearingThreshold) {
+    // PLAYER FOOTSTEPS
+    double playerSpeed = _actualVelocity.distance;
+    double footstepThreshold = 20.0;
+    
+    if (playerSpeed > footstepThreshold) {
       if (!_isFootstepsPlaying) {
         _footstepsPlayer.play(AssetSource('audio/footsteps.ogg'));
         _isFootstepsPlaying = true;
       }
-      double vol = 1.0 - (botDist / hearingThreshold);
-      _footstepsPlayer.setVolume(vol.clamp(0.0, 1.0));
-      double rate = 1.0 + (1.0 - (botDist / hearingThreshold));
-      _footstepsPlayer.setPlaybackRate(rate.clamp(1.0, 2.0));
+      
+      double footstepVolume = isChasing ? 0.4 : 0.7;
+      _footstepsPlayer.setVolume(footstepVolume);
+      
+      double rate = 0.8 + (playerSpeed / maxSpeed) * 0.8;
+      _footstepsPlayer.setPlaybackRate(rate.clamp(0.8, 1.6));
     } else {
       if (_isFootstepsPlaying) {
         _footstepsPlayer.pause();
@@ -357,16 +383,29 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // Layered Heartbeat Audio
+    // HEARTBEAT & TENSION AUDIO
     double targetHbVolume = 0.0;
     double targetHbRate = 1.0;
+    double targetTensionVolume = 0.0;
+    double targetBgmVolume = 1.0;
 
-    if (bots[0].state == BotState.chasing) {
+    if (isChasing) {
       targetHbVolume = 1.0;
-      targetHbRate = 2.0; 
+      targetHbRate = 2.0;
+      targetTensionVolume = 0.6;
+      targetBgmVolume = 0.7;
+      
+      panicIntensity += dt * 2.0;
+      if (panicIntensity > 1.0) panicIntensity = 1.0;
     } else if (botDist < config.panicRadius) {
       targetHbVolume = 1.0 - (botDist / config.panicRadius);
-      targetHbRate = 1.0 + (targetHbVolume * 0.5); 
+      targetHbRate = 1.0 + (targetHbVolume * 0.5);
+      
+      panicIntensity -= dt * 1.5;
+      if (panicIntensity < 0) panicIntensity = 0;
+    } else {
+      panicIntensity -= dt * 1.5;
+      if (panicIntensity < 0) panicIntensity = 0;
     }
 
     if (_currentHeartbeatVolume < targetHbVolume) {
@@ -391,13 +430,41 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // Win Logic - fixed to check bounds properly
+    if (_currentTensionVolume < targetTensionVolume) {
+      _currentTensionVolume += 1.0 * dt;
+      if (_currentTensionVolume > targetTensionVolume) _currentTensionVolume = targetTensionVolume;
+    } else if (_currentTensionVolume > targetTensionVolume) {
+      _currentTensionVolume -= 0.8 * dt;
+      if (_currentTensionVolume < targetTensionVolume) _currentTensionVolume = targetTensionVolume;
+    }
+
+    if (_currentTensionVolume > 0.05) {
+      if (!_isTensionPlaying) {
+        _tensionPlayer.play(AssetSource('audio/tension.ogg'));
+        _isTensionPlaying = true;
+      }
+      _tensionPlayer.setVolume(_currentTensionVolume.clamp(0.0, 1.0));
+    } else {
+      if (_isTensionPlaying) {
+        _tensionPlayer.pause();
+        _isTensionPlaying = false;
+      }
+    }
+
+    if (_currentBgmVolume < targetBgmVolume) {
+      _currentBgmVolume += 0.5 * dt;
+      if (_currentBgmVolume > targetBgmVolume) _currentBgmVolume = targetBgmVolume;
+    } else if (_currentBgmVolume > targetBgmVolume) {
+      _currentBgmVolume -= 0.5 * dt;
+      if (_currentBgmVolume < targetBgmVolume) _currentBgmVolume = targetBgmVolume;
+    }
+    _bgmPlayer.setVolume(_currentBgmVolume.clamp(0.0, 1.0));
+
+    // 5. Win Logic
     if ((playerPos - exitPos).distance < exitRadius && _isWithinBounds(playerPos)) {
       if (!isGameWon) {
         isGameWon = true;
-        _bgmPlayer.stop();
-        _footstepsPlayer.stop();
-        _heartbeatPlayer.stop();
+        _stopAllAudio();
         _sfxPlayer.play(AssetSource('audio/victory.ogg')); 
         
         if (bestTimeMilliseconds == null || elapsedMilliseconds < bestTimeMilliseconds!) {
@@ -407,6 +474,7 @@ class GameModel extends ChangeNotifier {
       }
     }
 
+    // 6. Bot AI
     for (var bot in bots) {
       _updateBotFSM(bot, dt, botDist);
 
@@ -415,16 +483,13 @@ class GameModel extends ChangeNotifier {
           isCaught = true; 
           _actualVelocity = Offset.zero; 
           
-          _bgmPlayer.stop();
-          _footstepsPlayer.stop();
-          _heartbeatPlayer.stop();
+          _stopAllAudio();
           _breathingPlayer.play(AssetSource('audio/breathing.ogg')); 
         }
       }
     }
 
-    // 4. Visual Heartbeat Pulse accumulator
-    bool isChasing = bots.any((b) => b.state == BotState.chasing);
+    // 7. Visual Heartbeat Pulse
     if (isChasing) {
       double secondsPerBeat = 60.0 / 130.0; 
       _pulseTimer += dt;
@@ -442,6 +507,16 @@ class GameModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  void _stopAllAudio() {
+    _bgmPlayer.stop();
+    _footstepsPlayer.stop();
+    _heartbeatPlayer.stop();
+    _tensionPlayer.stop();
+    _isFootstepsPlaying = false;
+    _isHeartbeatPlaying = false;
+    _isTensionPlaying = false;
   }
 
   bool _isWithinBounds(Offset pos) {
@@ -480,7 +555,6 @@ class GameModel extends ChangeNotifier {
     if (canSeePlayer) {
       bot.state = BotState.chasing;
       bot.lastSeenPosition = playerPos; 
-      // Reset path when seeing player
       bot.currentPath.clear();
       bot.currentPathIndex = 0;
     }
@@ -516,6 +590,18 @@ class GameModel extends ChangeNotifier {
       bot.state = BotState.investigating;
       bot.currentPath.clear();
       bot.currentPathIndex = 0;
+    }
+
+    if (bot.hesitationTimer > 0) {
+      bot.hesitationTimer -= dt;
+      return;
+    }
+
+    if (distToPlayer < 80.0 && _isPlayerInDeadEnd()) {
+      Random rng = Random();
+      if (rng.nextDouble() < 0.15) {
+        bot.hesitationTimer = 0.3;
+      }
     }
 
     switch (bot.state) {
@@ -587,29 +673,43 @@ class GameModel extends ChangeNotifier {
     }
   }
 
+  bool _isPlayerInDeadEnd() {
+    int openDirections = 0;
+    double checkDist = config.mazeCellSize;
+    
+    List<Offset> directions = [
+      Offset(checkDist, 0),
+      Offset(-checkDist, 0),
+      Offset(0, checkDist),
+      Offset(0, -checkDist),
+    ];
+    
+    for (var dir in directions) {
+      if (!_checkCollision(playerPos + dir)) {
+        openDirections++;
+      }
+    }
+    
+    return openDirections <= 1;
+  }
+
   void _moveBotWithPathfinding(Bot bot, Offset destination, double dt, double stateSpeedMultiplier) {
-    // Get current and target cells
     Point<int> botCell = _offsetToCell(bot.position);
     Point<int> targetCell = _offsetToCell(destination);
 
-    // If we need a new path or don't have one
     if (bot.currentPath.isEmpty || bot.currentPathIndex >= bot.currentPath.length) {
       bot.currentPath = mazeGenerator.findPath(botCell, targetCell);
       bot.currentPathIndex = 0;
     }
 
-    // If we have a path, follow it
     if (bot.currentPath.isNotEmpty && bot.currentPathIndex < bot.currentPath.length) {
       Point<int> nextCell = bot.currentPath[bot.currentPathIndex];
       Offset nextWaypoint = _cellToOffset(nextCell);
 
-      // Move towards waypoint
       Offset dir = nextWaypoint - bot.position;
       if (dir.distance < config.mazeCellSize * 0.3) {
-        // Reached waypoint, move to next
         bot.currentPathIndex++;
       } else {
-        // Move towards waypoint
         bot.facingAngle = atan2(dir.dy, dir.dx);
         double finalSpeed = bot.baseSpeed * stateSpeedMultiplier * config.botSpeedMultiplier;
         bot.position += (dir / dir.distance) * (finalSpeed * dt);
@@ -659,22 +759,29 @@ class GameModel extends ChangeNotifier {
     velocity = Offset.zero;
     _actualVelocity = Offset.zero; 
     
+    panicIntensity = 0.0;
+    visualPulseIntensity = 0.0;
+    _pulseTimer = 0.0;
+    
     currentEchoCharges = config.maxEchoCharges;
 
     _generateLevel();
     
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
-    _currentHeartbeatVolume = 0.0; 
+    _isTensionPlaying = false;
+    _currentHeartbeatVolume = 0.0;
+    _currentTensionVolume = 0.0;
+    _currentBgmVolume = 1.0;
     
     _breathingPlayer.stop();
     _jumpscarePlayer.stop();
+    _tensionPlayer.stop();
+    _bgmPlayer.setVolume(1.0);
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
     
     notifyListeners();
   }
-
-  // --- MATH & COLLISION HELPERS ---
 
   bool _checkCollision(Offset pos) {
     for (var wall in walls) {

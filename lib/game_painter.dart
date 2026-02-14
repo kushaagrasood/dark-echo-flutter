@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math'; 
+import 'dart:ui' as ui;
 import 'game_model.dart';
 
 class GamePainter extends CustomPainter {
@@ -9,7 +10,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Calculate Fear Factor based on nearest bot
+    // 1. Calculate Fear Factor
     double minBotDist = double.infinity;
     bool isChasing = false;
 
@@ -19,7 +20,6 @@ class GamePainter extends CustomPainter {
       if (bot.state == BotState.chasing) isChasing = true;
     }
 
-    // Fear scales from 0.0 (safe) to 1.0 (touching)
     double fearFactor = 0.0;
     if (minBotDist < 200.0) {
       fearFactor = 1.0 - (minBotDist / 200.0).clamp(0.0, 1.0);
@@ -29,13 +29,16 @@ class GamePainter extends CustomPainter {
     final bgPaint = Paint()..color = const Color(0xFF050505);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // --- START DISTORTION LAYER ---
+    // --- START CAMERA & DISTORTION LAYER ---
     canvas.save(); 
 
-    // Apply Screen Shake if being chased
+    // Apply Camera Offset
+    canvas.translate(-model.cameraOffset.dx, -model.cameraOffset.dy);
+
+    // Apply Screen Shake during chase
     if (isChasing && fearFactor > 0) {
       final random = Random();
-      double shakeIntensity = fearFactor * 4.0; 
+      double shakeIntensity = fearFactor * 3.0; // Subtle shake
       double dx = (random.nextDouble() - 0.5) * 2 * shakeIntensity;
       double dy = (random.nextDouble() - 0.5) * 2 * shakeIntensity;
       canvas.translate(dx, dy);
@@ -52,11 +55,10 @@ class GamePainter extends CustomPainter {
       exitPaint,
     );
 
-    // 4. Draw Walls - IMPROVED whole-wall reveal system
+    // 4. Draw Walls - whole-wall reveal system
     for (int wallIdx = 0; wallIdx < model.walls.length; wallIdx++) {
       var wall = model.walls[wallIdx];
       
-      // Check if this wall should be visible
       double opacity = 0.0;
       if (model.wallRevealTimers.containsKey(wallIdx)) {
         opacity = model.wallRevealTimers[wallIdx]!.clamp(0.0, 1.0);
@@ -70,17 +72,15 @@ class GamePainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3.0) 
           ..style = PaintingStyle.stroke;
 
-        // Draw entire wall
         for (int i = 0; i < wall.length - 1; i++) {
           canvas.drawLine(wall[i], wall[i + 1], wallPaint);
         }
       }
     }
 
-    // 5. Draw wave rings (visual feedback for the ping)
+    // 5. Draw wave rings
     for (var wave in model.waves) {
       if (wave.opacity > 0) {
-        // Quality deteriorates over distance - thicker at center, thinner at edges
         double baseWidth = 4.0;
         double distanceFactor = (wave.radius / wave.maxRadius).clamp(0.0, 1.0);
         double strokeWidth = baseWidth * (1.0 - distanceFactor * 0.7);
@@ -101,7 +101,6 @@ class GamePainter extends CustomPainter {
         ..color = Colors.redAccent.withValues(alpha: bot.opacity.clamp(0.0, 1.0));
       canvas.drawCircle(bot.position, 10.0, botPaint);
       
-      // Draw glow effect when chasing
       if (bot.state == BotState.chasing) {
         final glowPaint = Paint()
           ..color = Colors.redAccent.withValues(alpha: 0.3)
@@ -114,21 +113,19 @@ class GamePainter extends CustomPainter {
     final playerPaint = Paint()..color = Colors.blueAccent;
     canvas.drawCircle(model.playerPos, 8.0, playerPaint);
     
-    // Player glow
     final playerGlowPaint = Paint()
       ..color = Colors.blueAccent.withValues(alpha: 0.2)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
     canvas.drawCircle(model.playerPos, 15.0, playerGlowPaint);
 
-    // --- NEW: Visual Heartbeat Pulse ---
+    // 8. Visual Heartbeat Pulse
     if (model.visualPulseIntensity > 0) {
-      // Radius expands from 50 to 200 as the pulse decays
       double pulseRadius = 50.0 + ((1.0 - model.visualPulseIntensity) * 150.0); 
       
       final pulsePaint = Paint()
         ..shader = RadialGradient(
           colors: [
-            Colors.redAccent.withValues(alpha: model.visualPulseIntensity * 0.25), // Flash red
+            Colors.redAccent.withValues(alpha: model.visualPulseIntensity * 0.25),
             Colors.transparent,
           ],
           stops: const [0.2, 1.0],
@@ -138,7 +135,34 @@ class GamePainter extends CustomPainter {
       canvas.drawCircle(model.playerPos, pulseRadius, pulsePaint);
     }
 
-    // 8. Draw Fear Vignette Overlay
+    canvas.restore(); 
+    // --- END CAMERA LAYER ---
+
+    // 9. PANIC VISUAL LAYER (Screen-space effects)
+    if (model.panicIntensity > 0.0) {
+      // Darker vignette
+      final panicVignette = Paint()
+        ..shader = RadialGradient(
+          center: Alignment.center,
+          radius: 1.2 - (model.panicIntensity * 0.3),
+          colors: [
+            Colors.transparent,
+            Colors.black.withValues(alpha: model.panicIntensity * 0.4),
+            Colors.black.withValues(alpha: model.panicIntensity * 0.8),
+          ],
+          stops: const [0.3, 0.7, 1.0],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+        ..blendMode = BlendMode.srcOver;
+
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), panicVignette);
+
+      // Subtle screen grain overlay
+      if (model.panicIntensity > 0.3) {
+        _drawGrainOverlay(canvas, size, model.panicIntensity);
+      }
+    }
+
+    // 10. Standard Fear Vignette
     if (fearFactor > 0) {
       final vignettePaint = Paint()
         ..shader = RadialGradient(
@@ -155,9 +179,21 @@ class GamePainter extends CustomPainter {
 
       canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), vignettePaint);
     }
+  }
 
-    // --- END DISTORTION LAYER ---
-    canvas.restore(); 
+  // Lightweight grain overlay
+  void _drawGrainOverlay(Canvas canvas, Size size, double intensity) {
+    final random = Random();
+    final grainPaint = Paint()
+      ..color = Colors.white.withValues(alpha: intensity * 0.02)
+      ..blendMode = BlendMode.overlay;
+
+    // Draw subtle grain pixels
+    for (int i = 0; i < 200; i++) {
+      double x = random.nextDouble() * size.width;
+      double y = random.nextDouble() * size.height;
+      canvas.drawCircle(Offset(x, y), 0.5, grainPaint);
+    }
   }
 
   @override
