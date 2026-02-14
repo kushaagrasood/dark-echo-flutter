@@ -52,37 +52,73 @@ class GamePainter extends CustomPainter {
       exitPaint,
     );
 
-    // 4. Draw Walls (Echoes)
-    for (var wave in model.waves) {
-      final wallPaint = Paint()
-        ..color = Colors.white.withValues(alpha: wave.opacity.clamp(0.0, 1.0))
-        ..strokeWidth = 3.0
-        ..strokeCap = StrokeCap.round 
-        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3.0) 
-        ..style = PaintingStyle.stroke;
+    // 4. Draw Walls - IMPROVED whole-wall reveal system
+    for (int wallIdx = 0; wallIdx < model.walls.length; wallIdx++) {
+      var wall = model.walls[wallIdx];
+      
+      // Check if this wall should be visible
+      double opacity = 0.0;
+      if (model.wallRevealTimers.containsKey(wallIdx)) {
+        opacity = model.wallRevealTimers[wallIdx]!.clamp(0.0, 1.0);
+      }
 
-      for (var wall in model.walls) {
+      if (opacity > 0) {
+        final wallPaint = Paint()
+          ..color = Colors.white.withValues(alpha: opacity)
+          ..strokeWidth = 3.0
+          ..strokeCap = StrokeCap.round 
+          ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3.0) 
+          ..style = PaintingStyle.stroke;
+
+        // Draw entire wall
         for (int i = 0; i < wall.length - 1; i++) {
-          Offset p1 = wall[i];
-          Offset p2 = wall[i + 1];
-
-          if (_isWaveHittingSegment(wave, p1, p2)) {
-            canvas.drawLine(p1, p2, wallPaint);
-          }
+          canvas.drawLine(wall[i], wall[i + 1], wallPaint);
         }
       }
     }
 
-    // 5. Draw Enemy Bots
+    // 5. Draw wave rings (visual feedback for the ping)
+    for (var wave in model.waves) {
+      if (wave.opacity > 0) {
+        // Quality deteriorates over distance - thicker at center, thinner at edges
+        double baseWidth = 4.0;
+        double distanceFactor = (wave.radius / wave.maxRadius).clamp(0.0, 1.0);
+        double strokeWidth = baseWidth * (1.0 - distanceFactor * 0.7);
+        
+        final wavePaint = Paint()
+          ..color = Colors.cyanAccent.withValues(alpha: wave.opacity * 0.4)
+          ..strokeWidth = strokeWidth
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2.0);
+        
+        canvas.drawCircle(wave.center, wave.radius, wavePaint);
+      }
+    }
+
+    // 6. Draw Enemy Bots
     for (var bot in model.bots) {
       final botPaint = Paint()
         ..color = Colors.redAccent.withValues(alpha: bot.opacity.clamp(0.0, 1.0));
       canvas.drawCircle(bot.position, 10.0, botPaint);
+      
+      // Draw glow effect when chasing
+      if (bot.state == BotState.chasing) {
+        final glowPaint = Paint()
+          ..color = Colors.redAccent.withValues(alpha: 0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15.0);
+        canvas.drawCircle(bot.position, 20.0, glowPaint);
+      }
     }
 
-    // 6. Draw Player
+    // 7. Draw Player
     final playerPaint = Paint()..color = Colors.blueAccent;
     canvas.drawCircle(model.playerPos, 8.0, playerPaint);
+    
+    // Player glow
+    final playerGlowPaint = Paint()
+      ..color = Colors.blueAccent.withValues(alpha: 0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+    canvas.drawCircle(model.playerPos, 15.0, playerGlowPaint);
 
     // --- NEW: Visual Heartbeat Pulse ---
     if (model.visualPulseIntensity > 0) {
@@ -102,7 +138,7 @@ class GamePainter extends CustomPainter {
       canvas.drawCircle(model.playerPos, pulseRadius, pulsePaint);
     }
 
-    // 7. Draw Fear Vignette Overlay
+    // 8. Draw Fear Vignette Overlay
     if (fearFactor > 0) {
       final vignettePaint = Paint()
         ..shader = RadialGradient(
@@ -122,19 +158,6 @@ class GamePainter extends CustomPainter {
 
     // --- END DISTORTION LAYER ---
     canvas.restore(); 
-  }
-
-  bool _isWaveHittingSegment(EchoWave wave, Offset p1, Offset p2) {
-    double dist = _distToSegment(wave.center, p1, p2);
-    return (dist - wave.radius).abs() < 10.0; 
-  }
-
-  double _distToSegment(Offset p, Offset v, Offset w) {
-    double l2 = (v - w).distanceSquared;
-    if (l2 == 0) return (p - v).distance;
-    double t = ((p.dx - v.dx) * (w.dx - v.dx) + (p.dy - v.dy) * (w.dy - v.dy)) / l2;
-    t = (t < 0) ? 0 : (t > 1 ? 1 : t);
-    return (p - Offset(v.dx + t * (w.dx - v.dx), v.dy + t * (w.dy - v.dy))).distance;
   }
 
   @override
