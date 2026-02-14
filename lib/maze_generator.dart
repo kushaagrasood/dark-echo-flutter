@@ -24,7 +24,7 @@ class MazeGenerator {
     this.gridWidth = 10,
     this.gridHeight = 10,
     this.cellSize = 40.0,
-    this.loopPercentage = 0.15, // 15% of internal walls removed
+    this.loopPercentage = 0.15,
     this.startOffset = const Offset(0, 0),
   }) {
     // Initialize grids with ALL walls closed (true)
@@ -133,6 +133,11 @@ class MazeGenerator {
       }
     }
     return [];
+  }
+
+  /// Public pathfinding method for bot navigation
+  List<Point<int>> findPath(Point<int> start, Point<int> end) {
+    return _bfs(start, end);
   }
 
   // --- Helpers ---
