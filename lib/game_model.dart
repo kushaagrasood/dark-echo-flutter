@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'maze_generator.dart'; // Ensure this file is in your lib folder
+import 'maze_generator.dart';
 
 // --- DIFFICULTY CONFIGURATION ---
 enum Difficulty { easy, medium, hard }
@@ -34,39 +34,39 @@ class DifficultyConfig {
     switch (level) {
       case Difficulty.easy:
         return const DifficultyConfig(
-          botSpeedMultiplier: 0.8,
+          botSpeedMultiplier: 0.64, // Reduced by 20% from 0.8
           hearingRadius: 300.0,
           loopPercentage: 0.25, 
           maxEchoCharges: 5,
           searchDuration: 6.0, 
           panicRadius: 100.0, 
-          mazeCellSize: 50.0, 
-          gridWidth: 7,
-          gridHeight: 9,
+          mazeCellSize: 60.0, // Increased for landscape
+          gridWidth: 12, // Landscape dimensions
+          gridHeight: 7,
         );
       case Difficulty.medium:
         return const DifficultyConfig(
-          botSpeedMultiplier: 1.0,
+          botSpeedMultiplier: 0.8, // Reduced by 20% from 1.0
           hearingRadius: 400.0,
           loopPercentage: 0.15,
           maxEchoCharges: 3,
           searchDuration: 4.0,
           panicRadius: 150.0,
-          mazeCellSize: 40.0, 
-          gridWidth: 9,
-          gridHeight: 11,
+          mazeCellSize: 50.0, // Adjusted for landscape
+          gridWidth: 14, // Landscape dimensions
+          gridHeight: 8,
         );
       case Difficulty.hard:
         return const DifficultyConfig(
-          botSpeedMultiplier: 1.15,
+          botSpeedMultiplier: 0.92, // Reduced by 20% from 1.15
           hearingRadius: 550.0,
           loopPercentage: 0.05, 
           maxEchoCharges: 2,
           searchDuration: 2.5, 
           panicRadius: 200.0, 
-          mazeCellSize: 30.0, 
-          gridWidth: 12,
-          gridHeight: 15,
+          mazeCellSize: 40.0, // Adjusted for landscape
+          gridWidth: 18, // Landscape dimensions
+          gridHeight: 10,
         );
     }
   }
@@ -77,6 +77,7 @@ class EchoWave {
   Offset center;
   double radius;
   double opacity;
+  final double maxRadius = 400.0; // Maximum travel distance
 
   EchoWave({required this.center, this.radius = 0.0, this.opacity = 1.0});
 }
@@ -99,6 +100,10 @@ class Bot {
   double lastHeardStrength = 0.0;
   final double hearingThreshold = 0.15; 
 
+  // Pathfinding
+  List<Point<int>> currentPath = [];
+  int currentPathIndex = 0;
+
   Bot({
     required this.position,
     this.opacity = 1.0,
@@ -107,6 +112,7 @@ class Bot {
 
 class GameModel extends ChangeNotifier {
   late DifficultyConfig config;
+  Difficulty currentDifficulty = Difficulty.medium;
   int currentEchoCharges = 0;
 
   late Offset playerPos;
@@ -127,8 +133,15 @@ class GameModel extends ChangeNotifier {
   late List<List<Offset>> walls; 
   final Offset mazeOffset = const Offset(20, 40); 
 
+  // Store wall reveal info for whole-wall rendering
+  Map<int, double> wallRevealTimers = {}; // wallIndex -> remainingTime
+  Set<int> currentlyHitWalls = {};
+
   List<EchoWave> waves = [];
   late List<Bot> bots; 
+
+  // Store maze generator for pathfinding
+  late MazeGenerator mazeGenerator;
 
   Offset velocity = Offset.zero; 
   Offset _actualVelocity = Offset.zero; 
@@ -150,7 +163,12 @@ class GameModel extends ChangeNotifier {
   double visualPulseIntensity = 0.0;
   double _pulseTimer = 0.0;
 
+  // Display bounds for landscape (800x450 with margin)
+  final double displayWidth = 760.0;
+  final double displayHeight = 410.0;
+
   GameModel({Difficulty difficulty = Difficulty.medium}) {
+    currentDifficulty = difficulty;
     config = DifficultyConfig.get(difficulty);
     currentEchoCharges = config.maxEchoCharges;
 
@@ -159,8 +177,14 @@ class GameModel extends ChangeNotifier {
     _generateLevel();
   }
 
+  void changeDifficulty(Difficulty newDifficulty) {
+    currentDifficulty = newDifficulty;
+    config = DifficultyConfig.get(newDifficulty);
+    resetGame();
+  }
+
   void _generateLevel() {
-    final generator = MazeGenerator(
+    mazeGenerator = MazeGenerator(
       gridWidth: config.gridWidth,
       gridHeight: config.gridHeight,
       cellSize: config.mazeCellSize,
@@ -171,7 +195,7 @@ class GameModel extends ChangeNotifier {
     final startCell = const Point(0, 0);
     final exitCell = Point(config.gridWidth - 1, config.gridHeight - 1);
 
-    walls = generator.generate(startCell, exitCell);
+    walls = mazeGenerator.generate(startCell, exitCell);
 
     playerPos = mazeOffset + Offset(
       startCell.x * config.mazeCellSize + (config.mazeCellSize / 2), 
@@ -217,13 +241,13 @@ class GameModel extends ChangeNotifier {
 
   Future<void> _loadBestTime() async {
     final prefs = await SharedPreferences.getInstance();
-    bestTimeMilliseconds = prefs.getInt('best_time');
+    bestTimeMilliseconds = prefs.getInt('best_time_${currentDifficulty.name}');
     notifyListeners();
   }
 
   Future<void> _saveBestTime() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('best_time', bestTimeMilliseconds!);
+    await prefs.setInt('best_time_${currentDifficulty.name}', bestTimeMilliseconds!);
   }
   
   void update(double dt) {
@@ -233,7 +257,7 @@ class GameModel extends ChangeNotifier {
       caughtTimer += dt;
       if (caughtTimer >= 1.0) {
         isGameOver = true; 
-        _jumpscarePlayer.play(AssetSource('audio/caught(fnaf).ogg'));
+        _jumpscarePlayer.play(AssetSource('audio/scream.ogg')); // Changed audio
         notifyListeners();
       }
       return; 
@@ -241,11 +265,41 @@ class GameModel extends ChangeNotifier {
 
     elapsedMilliseconds += (dt * 1000).toInt();
 
-    // 1. Update Waves
+    // 1. Update Waves with quality deterioration
     for (int i = waves.length - 1; i >= 0; i--) {
-      waves[i].radius += 150 * dt;
-      waves[i].opacity -= 0.5 * dt;
-      if (waves[i].opacity <= 0) waves.removeAt(i);
+      waves[i].radius += 200 * dt; // Faster wave propagation
+      
+      // Quality deteriorates over distance
+      double distanceFactor = (waves[i].radius / waves[i].maxRadius).clamp(0.0, 1.0);
+      waves[i].opacity = (1.0 - distanceFactor) * (1.0 - (waves[i].radius / 600.0));
+      
+      if (waves[i].opacity <= 0 || waves[i].radius >= waves[i].maxRadius) {
+        waves.removeAt(i);
+      }
+    }
+
+    // Update wall reveal timers
+    Set<int> currentHits = {};
+    for (var wave in waves) {
+      for (int wallIdx = 0; wallIdx < walls.length; wallIdx++) {
+        if (_isWaveHittingWall(wave, walls[wallIdx])) {
+          currentHits.add(wallIdx);
+          wallRevealTimers[wallIdx] = 1.0; // Reset timer to 1 second
+        }
+      }
+    }
+    currentlyHitWalls = currentHits;
+
+    // Decay timers
+    List<int> toRemove = [];
+    wallRevealTimers.forEach((wallIdx, timer) {
+      wallRevealTimers[wallIdx] = timer - dt;
+      if (wallRevealTimers[wallIdx]! <= 0) {
+        toRemove.add(wallIdx);
+      }
+    });
+    for (var idx in toRemove) {
+      wallRevealTimers.remove(idx);
     }
 
     // 2. Physics & Momentum
@@ -268,7 +322,7 @@ class GameModel extends ChangeNotifier {
 
     Offset moveX = Offset(_actualVelocity.dx * dt, 0);
     Offset newPosX = playerPos + moveX;
-    if (!_checkCollision(newPosX)) {
+    if (!_checkCollision(newPosX) && _isWithinBounds(newPosX)) {
       playerPos = newPosX;
     } else {
       _actualVelocity = Offset(0, _actualVelocity.dy); 
@@ -276,7 +330,7 @@ class GameModel extends ChangeNotifier {
 
     Offset moveY = Offset(0, _actualVelocity.dy * dt);
     Offset newPosY = playerPos + moveY;
-    if (!_checkCollision(newPosY)) {
+    if (!_checkCollision(newPosY) && _isWithinBounds(newPosY)) {
       playerPos = newPosY;
     } else {
       _actualVelocity = Offset(_actualVelocity.dx, 0); 
@@ -337,8 +391,8 @@ class GameModel extends ChangeNotifier {
       }
     }
 
-    // Win Logic
-    if ((playerPos - exitPos).distance < exitRadius) {
+    // Win Logic - fixed to check bounds properly
+    if ((playerPos - exitPos).distance < exitRadius && _isWithinBounds(playerPos)) {
       if (!isGameWon) {
         isGameWon = true;
         _bgmPlayer.stop();
@@ -390,6 +444,23 @@ class GameModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _isWithinBounds(Offset pos) {
+    return pos.dx >= mazeOffset.dx && 
+           pos.dx <= mazeOffset.dx + displayWidth &&
+           pos.dy >= mazeOffset.dy && 
+           pos.dy <= mazeOffset.dy + displayHeight;
+  }
+
+  bool _isWaveHittingWall(EchoWave wave, List<Offset> wall) {
+    for (int i = 0; i < wall.length - 1; i++) {
+      double dist = _distToSegment(wave.center, wall[i], wall[i + 1]);
+      if ((dist - wave.radius).abs() < 20.0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _updateBotFSM(Bot bot, double dt, double distToPlayer) {
     bool canSeePlayer = false;
     if (distToPlayer <= 220.0) { 
@@ -409,6 +480,9 @@ class GameModel extends ChangeNotifier {
     if (canSeePlayer) {
       bot.state = BotState.chasing;
       bot.lastSeenPosition = playerPos; 
+      // Reset path when seeing player
+      bot.currentPath.clear();
+      bot.currentPathIndex = 0;
     }
 
     bool heardNewSound = false;
@@ -440,6 +514,8 @@ class GameModel extends ChangeNotifier {
 
     if (heardNewSound && bot.state != BotState.chasing && bot.state != BotState.searching) {
       bot.state = BotState.investigating;
+      bot.currentPath.clear();
+      bot.currentPathIndex = 0;
     }
 
     switch (bot.state) {
@@ -448,14 +524,15 @@ class GameModel extends ChangeNotifier {
 
       case BotState.investigating:
         if (bot.lastHeardPosition != null) {
-          _moveBot(bot, bot.lastHeardPosition!, dt, 1.0); 
+          _moveBotWithPathfinding(bot, bot.lastHeardPosition!, dt, 1.0);
           
-          if ((bot.position - bot.lastHeardPosition!).distance < 5.0) {
+          if ((bot.position - bot.lastHeardPosition!).distance < 10.0) {
             bot.state = BotState.searching;
             bot.stateTimer = config.searchDuration; 
             bot.lastSeenPosition = bot.lastHeardPosition; 
             bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 60.0);
-            bot.lastHeardStrength = 0.0; 
+            bot.lastHeardStrength = 0.0;
+            bot.currentPath.clear();
           }
         } else {
           bot.state = BotState.idle;
@@ -464,15 +541,16 @@ class GameModel extends ChangeNotifier {
 
       case BotState.chasing:
         if (canSeePlayer) {
-          _moveBot(bot, playerPos, dt, 1.4); 
+          _moveBotWithPathfinding(bot, playerPos, dt, 1.4);
         } else {
           if (bot.lastSeenPosition != null) {
-            _moveBot(bot, bot.lastSeenPosition!, dt, 1.4); 
+            _moveBotWithPathfinding(bot, bot.lastSeenPosition!, dt, 1.4);
             
-            if ((bot.position - bot.lastSeenPosition!).distance < 5.0) {
+            if ((bot.position - bot.lastSeenPosition!).distance < 10.0) {
               bot.state = BotState.searching;
               bot.stateTimer = config.searchDuration; 
               bot.currentWaypoint = _getRandomNearbyPosition(bot.position, 80.0);
+              bot.currentPath.clear();
             }
           }
         }
@@ -481,11 +559,12 @@ class GameModel extends ChangeNotifier {
       case BotState.searching:
         bot.stateTimer -= dt;
         if (bot.currentWaypoint != null) {
-          _moveBot(bot, bot.currentWaypoint!, dt, 0.6); 
+          _moveBotWithPathfinding(bot, bot.currentWaypoint!, dt, 0.6);
           
-          if ((bot.position - bot.currentWaypoint!).distance < 5.0) {
+          if ((bot.position - bot.currentWaypoint!).distance < 10.0) {
             if (bot.lastSeenPosition != null) {
                bot.currentWaypoint = _getRandomNearbyPosition(bot.lastSeenPosition!, 80.0);
+               bot.currentPath.clear();
             }
           }
         }
@@ -495,6 +574,7 @@ class GameModel extends ChangeNotifier {
           bot.stateTimer = 3.0; 
           bot.lastSeenPosition = null;
           bot.currentWaypoint = null;
+          bot.currentPath.clear();
         }
         break;
 
@@ -507,13 +587,47 @@ class GameModel extends ChangeNotifier {
     }
   }
 
-  void _moveBot(Bot bot, Offset destination, double dt, double stateSpeedMultiplier) {
-    Offset dir = destination - bot.position;
-    if (dir.distance > 0) {
-      bot.facingAngle = atan2(dir.dy, dir.dx); 
-      double finalSpeed = bot.baseSpeed * stateSpeedMultiplier * config.botSpeedMultiplier;
-      bot.position += (dir / dir.distance) * (finalSpeed * dt);
+  void _moveBotWithPathfinding(Bot bot, Offset destination, double dt, double stateSpeedMultiplier) {
+    // Get current and target cells
+    Point<int> botCell = _offsetToCell(bot.position);
+    Point<int> targetCell = _offsetToCell(destination);
+
+    // If we need a new path or don't have one
+    if (bot.currentPath.isEmpty || bot.currentPathIndex >= bot.currentPath.length) {
+      bot.currentPath = mazeGenerator.findPath(botCell, targetCell);
+      bot.currentPathIndex = 0;
     }
+
+    // If we have a path, follow it
+    if (bot.currentPath.isNotEmpty && bot.currentPathIndex < bot.currentPath.length) {
+      Point<int> nextCell = bot.currentPath[bot.currentPathIndex];
+      Offset nextWaypoint = _cellToOffset(nextCell);
+
+      // Move towards waypoint
+      Offset dir = nextWaypoint - bot.position;
+      if (dir.distance < config.mazeCellSize * 0.3) {
+        // Reached waypoint, move to next
+        bot.currentPathIndex++;
+      } else {
+        // Move towards waypoint
+        bot.facingAngle = atan2(dir.dy, dir.dx);
+        double finalSpeed = bot.baseSpeed * stateSpeedMultiplier * config.botSpeedMultiplier;
+        bot.position += (dir / dir.distance) * (finalSpeed * dt);
+      }
+    }
+  }
+
+  Point<int> _offsetToCell(Offset pos) {
+    int x = ((pos.dx - mazeOffset.dx) / config.mazeCellSize).floor().clamp(0, config.gridWidth - 1);
+    int y = ((pos.dy - mazeOffset.dy) / config.mazeCellSize).floor().clamp(0, config.gridHeight - 1);
+    return Point(x, y);
+  }
+
+  Offset _cellToOffset(Point<int> cell) {
+    return mazeOffset + Offset(
+      cell.x * config.mazeCellSize + (config.mazeCellSize / 2),
+      cell.y * config.mazeCellSize + (config.mazeCellSize / 2),
+    );
   }
 
   Offset _getRandomNearbyPosition(Offset center, double radius) {
@@ -540,18 +654,21 @@ class GameModel extends ChangeNotifier {
     
     elapsedMilliseconds = 0; 
     waves.clear();
+    wallRevealTimers.clear();
+    currentlyHitWalls.clear();
     velocity = Offset.zero;
     _actualVelocity = Offset.zero; 
     
-    currentEchoCharges = config.maxEchoCharges; // Replenish charges
+    currentEchoCharges = config.maxEchoCharges;
 
-    _generateLevel(); // Generate a fresh new maze layout
+    _generateLevel();
     
     _isFootstepsPlaying = false;
     _isHeartbeatPlaying = false;
     _currentHeartbeatVolume = 0.0; 
     
-    _breathingPlayer.stop(); 
+    _breathingPlayer.stop();
+    _jumpscarePlayer.stop();
     _bgmPlayer.play(AssetSource('audio/game_ambience.ogg'));
     
     notifyListeners();
