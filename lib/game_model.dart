@@ -87,6 +87,7 @@ enum BotState { idle, investigating, searching, chasing, cooldown }
 // GAME PHASE SYSTEM - Controls high-level game state
 enum GamePhase { 
   playing,        // Normal gameplay
+  paused,         // NEWLY ADDED - Game paused by user  
   deathSequence,  // Player caught, playing death animation
   gameOver,       // Death complete, showing game over screen
   gameWon         // Player escaped, showing victory screen
@@ -184,6 +185,9 @@ class GameModel extends ChangeNotifier {
   bool _isHeartbeatPlaying = false;
   bool _isTensionPlaying = false;
   double _currentBgmVolume = 1.0; // Only BGM uses smooth transitions
+  // Pause state tracking
+  bool _wasPausedMidFootstep = false;
+  double _pausedBgmVolume = 1.0;  
 
   double visualPulseIntensity = 0.0;
   double _pulseTimer = 0.0;
@@ -271,6 +275,51 @@ class GameModel extends ChangeNotifier {
     print('[AUDIO] BGM started playing in loop mode');
   }
 
+  void pauseGame() {
+    if (currentPhase != GamePhase.playing) return;
+    
+    print('[PAUSE] Game paused');
+    currentPhase = GamePhase.paused;
+    
+    _wasPausedMidFootstep = _isFootstepsPlaying;
+    
+    if (_isFootstepsPlaying) _footstepsPlayer.pause();
+    if (_isHeartbeatPlaying) _heartbeatPlayer.pause();
+    if (_isTensionPlaying) _tensionPlayer.pause();
+    
+    _pausedBgmVolume = _currentBgmVolume;
+    _bgmPlayer.setVolume(0.3);
+    
+    notifyListeners();
+  }
+
+  void resumeGame() {
+    if (currentPhase != GamePhase.paused) return;
+    
+    print('[PAUSE] Game resumed');
+    currentPhase = GamePhase.playing;
+    
+    if (_wasPausedMidFootstep) _footstepsPlayer.resume();
+    if (_isHeartbeatPlaying) _heartbeatPlayer.resume();
+    if (_isTensionPlaying) _tensionPlayer.resume();
+    
+    _bgmPlayer.setVolume(_pausedBgmVolume);
+    
+    notifyListeners();
+  }
+  
+  void stopAllAudio() { // WAS: void _stopAllAudio()
+      print('[AUDIO] Stopping all audio');
+      _bgmPlayer.stop();
+      _footstepsPlayer.stop();
+      _heartbeatPlayer.stop();
+      _tensionPlayer.stop();
+      _breathingPlayer.stop(); // Add if not present
+      _isFootstepsPlaying = false;
+      _isHeartbeatPlaying = false;
+      _isTensionPlaying = false;
+    }
+
   Future<void> _loadBestTime() async {
     final prefs = await SharedPreferences.getInstance();
     bestTimeMilliseconds = prefs.getInt('best_time');
@@ -283,6 +332,11 @@ class GameModel extends ChangeNotifier {
   }
 
   void update(double dt) {
+
+    // CRITICAL: Return early if paused - NO game logic runs
+    if (currentPhase == GamePhase.paused) {
+      return;
+    }
     // ========================================
     // PHASE 1: DEATH SEQUENCE (Highest Priority)
     // ========================================
@@ -534,6 +588,7 @@ class GameModel extends ChangeNotifier {
       return;
     }
 
+    
     // Skip audio processing if game is over
     if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.gameWon) {
       return;

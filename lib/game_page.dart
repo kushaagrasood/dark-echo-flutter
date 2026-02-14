@@ -227,8 +227,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                       ),
                       const SizedBox(width: 8),
                       ...List.generate(_model.currentEchoCharges, (index) => 
-                        Padding(
-                          padding: const EdgeInsets.only(left: 2),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 2),
                           child: Icon(
                             Icons.circle,
                             size: 12,
@@ -241,7 +241,38 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-
+          // Pause Button (Top-right, left of echo charges)
+          if (_model.currentPhase == GamePhase.playing)
+            Positioned(
+              top: 20,
+              right: 210, // Left of echo charges
+              child: GestureDetector(
+                onTap: () => setState(() => _model.pauseGame()),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24, width: 1),
+                    color: Colors.black.withValues(alpha: 0.6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.pause, color: Colors.white54, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'PAUSE',
+                        style: GoogleFonts.vt323(
+                          textStyle: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           // 3. CONTROLS LAYER - constrained to specific areas
           // Arrow Controls (Bottom-left)
           if (_model.currentPhase == GamePhase.playing)
@@ -294,6 +325,93 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
               ),
             ),
 
+          // PAUSE OVERLAY
+          if (_model.currentPhase == GamePhase.paused)
+            Container(
+              color: Colors.black.withValues(alpha: 0.85),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24, width: 2),
+                    color: Colors.black.withValues(alpha: 0.9),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "PAUSED",
+                        style: GoogleFonts.vt323(
+                          textStyle: const TextStyle(
+                            fontSize: 64,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 8,
+                            shadows: [Shadow(color: Colors.cyanAccent, blurRadius: 15)],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      
+                      // Resume
+                      GestureDetector(
+                        onTap: () => setState(() => _model.resumeGame()),
+                        child: Container(
+                          width: 250,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.greenAccent, width: 2),
+                            color: Colors.greenAccent.withValues(alpha: 0.1),
+                          ),
+                          child: Text(
+                            "[ RESUME ]",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.vt323(
+                              textStyle: const TextStyle(
+                                fontSize: 28,
+                                color: Colors.greenAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Main Menu
+                      GestureDetector(
+                        onTap: () {
+                          _model.stopAllAudio();
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const MainMenu()),
+                          );
+                        },
+                        child: Container(
+                          width: 250,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24, width: 1),
+                            color: Colors.white.withValues(alpha: 0.05),
+                          ),
+                          child: Text(
+                            "[ MAIN MENU ]",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.vt323(
+                              textStyle: const TextStyle(
+                                fontSize: 24,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           // 4. OVERLAY LAYERS (Full-screen when active)
           // Game Over Screen
           if (_model.currentPhase == GamePhase.gameOver)
