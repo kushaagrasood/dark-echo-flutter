@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
-import 'main_menu.dart'; // Import the new menu
+import 'package:flutter/services.dart';
+import 'main_menu.dart';
 
 void main() {
-  runApp(const DarkEchoApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set landscape orientation globally
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]).then((_) {
+    runApp(const DarkEchoApp());
+  });
 }
 
 class DarkEchoApp extends StatelessWidget {
@@ -14,7 +23,7 @@ class DarkEchoApp extends StatelessWidget {
       title: 'Dark Echo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark),
-      home: const MainMenu(), // Change this to MainMenu!
+      home: const MainMenu(),
     );
   }
 }
