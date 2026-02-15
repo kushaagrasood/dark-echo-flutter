@@ -1,6 +1,6 @@
 # 🎮 Dark Echo
 
-**A survival horror experience built entirely in Flutter - no game engines, just code.**
+**A survival horror experience built entirely in Flutter**
 
 [![Download APK](https://img.shields.io/badge/Download-APK-success)](https://github.com/kushaagrasood/dark-echo-flutter/releases/latest)
 [![Flutter](https://img.shields.io/badge/Flutter-3.27-blue)](https://flutter.dev)
