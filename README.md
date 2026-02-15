@@ -180,9 +180,6 @@ dark-echo-flutter/
 **Developer**  
 Kushaagra Sood
 
-**Organization**  
-Android Club VIT Chennai
-
 **Connect**  
 - GitHub: [kushaagrasood](https://github.com/kushaagrasood/)
 - LinkedIn: [kushaagrasood23](https://www.linkedin.com/in/kushaagrasood23/)
