@@ -208,7 +208,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
-                        'PING:',
+                        'PINGS:',
                         style: TextStyle(fontFamily: 'VT323', 
                             color: Colors.white54,
                             fontSize: 18,
