@@ -317,7 +317,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                         child: AnimatedOpacity(
                           opacity: (_displayedTitle.length == _fullTitle.length && _showCursor) ? 1.0 : 0.0,
                           duration: const Duration(milliseconds: 100),
-                          child: Text(
+                          child: const Text(
                             "_",
                             style: TextStyle(
                               fontFamily: 'VT323',
@@ -334,7 +334,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   const SizedBox(height: 4),
                   
                   // Subtitle - 13px font
-                  Text(
+                  const Text(
                     "> ECHO LOCATION PROTOCOL v2.1",
                     style: TextStyle(
                       fontFamily: 'VT323',
@@ -415,7 +415,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   ),
                   
                   // User info
-                  Flexible(
+                  const Flexible(
                     child: Text(
                       "> user: operator_01_",
                       style: TextStyle(fontFamily: 'VT323',
