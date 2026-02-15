@@ -42,6 +42,11 @@ flutter:
     - assets/audio/caught.ogg         # Death sequence - stage 2
     - assets/audio/victory.ogg        # Victory sound
 
+  fonts:
+    - family: VT323
+      fonts:
+        - asset: assets/fonts/VT323-Regular.ttf
+
 flutter_launcher_icons:
   android: true
   ios: false

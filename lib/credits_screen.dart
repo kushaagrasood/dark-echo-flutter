@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CreditsScreen extends StatefulWidget {
@@ -51,74 +50,79 @@ class _CreditsScreenState extends State<CreditsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Title - 42px (reduced from 48px)
-                  Text(
+                  const Text(
                     "DARK ECHO",
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.vt323(
+                    style: TextStyle(
+                      fontFamily: 'VT323',
                       fontSize: 42,
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 5,
-                      shadows: const [
+                      shadows: [
                         Shadow(color: Color(0xFF4DF3FF), blurRadius: 15)
                       ],
                     ),
                   ),
                   
-                  const SizedBox(height: 3), // Reduced from 4px
+                  const SizedBox(height: 3),
                   
                   // Subtitle - 13px (reduced from 14px)
-                  Text(
+                  const Text(
                     "> SYSTEM ARCHITECTS",
-                    style: GoogleFonts.vt323(
+                    style: TextStyle(
+                      fontFamily: 'VT323',
                       fontSize: 13,
                       color: Colors.white38,
                       letterSpacing: 2,
                     ),
                   ),
                   
-                  const SizedBox(height: 24), // Reduced from 32px (-8px)
+                  const SizedBox(height: 24),
                   
                   // Developer Label - 15px (reduced from 16px)
-                  Text(
+                  const Text(
                     "Developer:",
-                    style: GoogleFonts.vt323(
+                    style: TextStyle(
+                      fontFamily: 'VT323',
                       fontSize: 15,
                       color: Colors.white70,
                     ),
                   ),
                   
-                  const SizedBox(height: 4), // Reduced from 6px
+                  const SizedBox(height: 4),
                   
                   // Developer Name - 26px (reduced from 28px)
-                  Text(
+                  const Text(
                     "Kushaagra Sood",
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.vt323(
+                    style: TextStyle(
+                      fontFamily: 'VT323',
                       fontSize: 26,
                       color: Colors.white,
-                      shadows: const [
+                      shadows: [
                         Shadow(color: Colors.blueAccent, blurRadius: 15)
                       ],
                     ),
                   ),
                   
-                  const SizedBox(height: 16), // Reduced from 20px (-4px)
+                  const SizedBox(height: 16),
                   
                   // Club Name - 20px (reduced from 22px)
-                  Text(
+                  const Text(
                     "Android Club VIT Chennai",
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.vt323(
+                    style: TextStyle(
+                      fontFamily: 'VT323',
                       fontSize: 20,
                       color: Colors.white,
-                      shadows: const [
+                      shadows: [
                         Shadow(color: Colors.greenAccent, blurRadius: 15)
                       ],
                     ),
                   ),
                   
-                  const SizedBox(height: 22), // Reduced from 28px (-6px)
+                  const SizedBox(height: 22),
                   
                   // Links Row - 15px (reduced from 16px)
                   Row(
@@ -129,7 +133,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                         text: 'GITHUB',
                         onTap: () => _launchURL('https://github.com/kushaagrasood/'),
                       ),
-                      const SizedBox(width: 14), // Reduced from 16px
+                      const SizedBox(width: 14),
                       _TerminalLinkButton(
                         icon: Icons.business,
                         text: 'LINKEDIN',
@@ -138,23 +142,24 @@ class _CreditsScreenState extends State<CreditsScreen> {
                     ],
                   ),
                   
-                  const SizedBox(height: 28), // Reduced from 36px (-8px)
+                  const SizedBox(height: 28),
                   
                   // Back Button - 17px (reduced from 18px)
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24, // Reduced from 28px
-                        vertical: 8,    // Reduced from 10px
+                        horizontal: 24,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.white24),
                         color: Colors.white.withValues(alpha: 0.02),
                       ),
-                      child: Text(
+                      child: const Text(
                         "[ RETURN ]",
-                        style: GoogleFonts.vt323(
+                        style: TextStyle(
+                          fontFamily: 'VT323',
                           fontSize: 17,
                           color: Colors.white54,
                         ),
@@ -201,8 +206,8 @@ class _TerminalLinkButtonState extends State<_TerminalLinkButton> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(
-          horizontal: 10, // Reduced from 12px
-          vertical: 7,    // Reduced from 8px
+          horizontal: 10,
+          vertical: 7,
         ),
         decoration: BoxDecoration(
           border: Border(
@@ -221,19 +226,20 @@ class _TerminalLinkButtonState extends State<_TerminalLinkButton> {
             Icon(
               widget.icon,
               color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white54,
-              size: 15, // Reduced from 16px
+              size: 15,
             ),
-            const SizedBox(width: 7), // Reduced from 8px
+            const SizedBox(width: 7),
             Text(
               "[ ${widget.text} ]",
-              style: GoogleFonts.vt323(
-                fontSize: 15, // Reduced from 16px
+              style: TextStyle(
+                fontFamily: 'VT323',
+                fontSize: 15,
                 color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white70,
                 shadows: _isHovered
                     ? const [
                         Shadow(color: Color(0xFF4DF3FF), blurRadius: 10)
                       ]
-                    : [],
+                    : null,
               ),
             ),
           ],

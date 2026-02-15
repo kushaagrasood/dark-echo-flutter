@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math'; 
-import 'package:google_fonts/google_fonts.dart';
 import 'game_model.dart';
 
 class GamePainter extends CustomPainter {
@@ -130,7 +129,8 @@ class GamePainter extends CustomPainter {
       // Draw bot character "Θ" with shadow
       _botPainter.text = TextSpan(
         text: 'Θ',
-        style: GoogleFonts.vt323(
+        style: TextStyle(
+          fontFamily: 'VT323',
           fontSize: 36.0, // 1.7x larger than player (36 vs 24)
           color: Colors.redAccent.withValues(alpha: finalOpacity),
           fontWeight: FontWeight.bold,
@@ -157,15 +157,16 @@ class GamePainter extends CustomPainter {
     canvas.drawCircle(model.playerPos, 18.0, playerGlowPaint);
     
     // Draw player character "@" with shadow
-    _playerPainter.text = TextSpan(
+    _playerPainter.text = const TextSpan(
       text: '@',
-      style: GoogleFonts.vt323(
+      style: TextStyle(
+        fontFamily: 'VT323',
         fontSize: 28.0,
         color: Colors.blueAccent,
         fontWeight: FontWeight.bold,
         shadows: [
           Shadow(
-            color: Colors.blue.withValues(alpha: 0.6),
+            color: Color.fromRGBO(33, 150, 243, 0.6),
             blurRadius: 6.0,
           ),
         ],

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'game_page.dart';
 import 'credits_screen.dart';
@@ -120,7 +119,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('[ FIRST-TIME INITIALIZATION ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold))),
+              const Text('[ FIRST-TIME INITIALIZATION ]', style: TextStyle(fontFamily: 'VT323', color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               _buildTerminalText('> WELCOME TO DARK ECHO.\\n', color: Colors.greenAccent),
               _buildTerminalText('> We recommend reviewing the DATABASE for mission briefing and controls.\\n', color: Colors.greenAccent),
@@ -134,7 +133,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(border: Border.all(color: const Color(0xFF4DF3FF))),
-                    child: Text('[ OPEN DATABASE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 20))),
+                    child: const Text('[ OPEN DATABASE ]', style: TextStyle(fontFamily: 'VT323', color: Color(0xFF4DF3FF), fontSize: 20)),
                   ),
                 ),
               ),
@@ -161,7 +160,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('[ DATABASE ACCESS ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold))),
+              const Text('[ DATABASE ACCESS ]', style: TextStyle(fontFamily: 'VT323', color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Expanded(
                 child: SingleChildScrollView(
@@ -210,7 +209,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(border: Border.all(color: const Color(0xFF4DF3FF))),
-                    child: Text('[ CLOSE ]', style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 20))),
+                    child: const Text('[ CLOSE ]', style: TextStyle(fontFamily: 'VT323', color: Color(0xFF4DF3FF), fontSize: 20)),
                   ),
                 ),
               ),
@@ -222,14 +221,14 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
   }
 
   Widget _buildTerminalText(String text, {Color color = Colors.white70, bool isItalic = false}) {
-    return Text(text, style: GoogleFonts.vt323(textStyle: TextStyle(color: color, fontSize: 20, fontStyle: isItalic ? FontStyle.italic : FontStyle.normal)));
+    return Text(text, style: TextStyle(fontFamily: 'VT323', color: color, fontSize: 20, fontStyle: isItalic ? FontStyle.italic : FontStyle.normal));
   }
 
   Widget _buildDatabaseSection(String title, List<String> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: GoogleFonts.vt323(textStyle: const TextStyle(color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold))),
+        Text(title, style: const TextStyle(fontFamily: 'VT323', color: Color(0xFF4DF3FF), fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         ...items.map((item) => Padding(padding: const EdgeInsets.only(left: 8, bottom: 4), child: _buildTerminalText(item))),
       ],
@@ -289,8 +288,9 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                         builder: (context, child) {
                           return Text(
                             _displayedTitle,
-                            style: GoogleFonts.vt323(
-                              fontSize: 56,
+                            style: TextStyle(
+                              fontFamily: 'VT323',
+                              fontSize: 40.0,
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 6,
@@ -319,8 +319,9 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                           duration: const Duration(milliseconds: 100),
                           child: Text(
                             "_",
-                            style: GoogleFonts.vt323(
-                              fontSize: 40,
+                            style: TextStyle(
+                              fontFamily: 'VT323',
+                              fontSize: 40.0,
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
@@ -335,8 +336,9 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   // Subtitle - 13px font
                   Text(
                     "> ECHO LOCATION PROTOCOL v2.1",
-                    style: GoogleFonts.vt323(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontFamily: 'VT323',
+                      fontSize: 13.0,
                       color: Colors.white38,
                       letterSpacing: 2,
                     ),
@@ -393,7 +395,8 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                       builder: (context, child) {
                         return Text(
                           "> dev: kushaagra_sood${_showCursor ? '█' : ' '}",
-                          style: GoogleFonts.vt323(
+                          style: TextStyle(
+                            fontFamily: 'VT323',
                             fontSize: 18,
                             color: const Color(0xFF4DF3FF).withValues(
                               alpha: 0.7 + (_pulseController.value * 0.3)
@@ -415,7 +418,7 @@ class _MainMenuState extends State<MainMenu> with TickerProviderStateMixin {
                   Flexible(
                     child: Text(
                       "> user: operator_01_",
-                      style: GoogleFonts.vt323(
+                      style: TextStyle(fontFamily: 'VT323',
                         fontSize: 18,
                         color: Colors.white38,
                       ),
@@ -471,7 +474,8 @@ class _TerminalMenuItemState extends State<_TerminalMenuItem> {
         ),
         child: Text(
           "> [ ${widget.text} ]",
-          style: GoogleFonts.vt323(
+          style: TextStyle(
+            fontFamily: 'VT323',
             fontSize: 20,
             color: _isHovered ? const Color(0xFF4DF3FF) : Colors.white,
             shadows: _isHovered

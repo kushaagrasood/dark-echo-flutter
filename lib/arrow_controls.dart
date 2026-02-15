@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Arrow-based directional controls for player movement
 /// Supports diagonal movement when multiple arrows pressed simultaneously
@@ -159,13 +158,12 @@ class _ArrowControlsState extends State<ArrowControls> {
                 child: Center(
                   child: Text(
                     "◆",
-                    style: GoogleFonts.vt323(
-                      textStyle: TextStyle(
-                        color: (_upPressed || _downPressed || _leftPressed || _rightPressed)
-                            ? Colors.cyanAccent.withValues(alpha: 0.8)
-                            : Colors.white.withValues(alpha: 0.3),
-                        fontSize: 24,
-                      ),
+                    style: TextStyle(
+                      fontFamily: 'VT323',
+                      color: (_upPressed || _downPressed || _leftPressed || _rightPressed)
+                          ? Colors.cyanAccent.withValues(alpha: 0.8)
+                          : Colors.white.withValues(alpha: 0.3),
+                      fontSize: 24,
                     ),
                   ),
                 ),

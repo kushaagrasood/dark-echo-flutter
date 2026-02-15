@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'main_menu.dart';
 
 void main() {
@@ -25,19 +24,21 @@ class DarkEchoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        // Set VT323 as the global font
-        textTheme: GoogleFonts.vt323TextTheme(
-          ThemeData.dark().textTheme,
-        ),
-        // Ensure button text also uses VT323
+        fontFamily: 'VT323', // Global font family
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            textStyle: GoogleFonts.vt323(fontSize: 20),
+            textStyle: const TextStyle(
+              fontFamily: 'VT323',
+              fontSize: 20,
+            ),
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            textStyle: GoogleFonts.vt323(fontSize: 20),
+            textStyle: const TextStyle(
+              fontFamily: 'VT323',
+              fontSize: 20,
+            ),
           ),
         ),
       ),

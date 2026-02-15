@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'game_model.dart';
 import 'game_painter.dart';
 import 'main_menu.dart';
@@ -74,12 +73,10 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
           borderRadius: BorderRadius.zero,
           side: BorderSide(color: Colors.white24, width: 2),
         ),
-        title: Text(
+        title: const Text(
           '[ SELECT DIFFICULTY ]',
-          style: GoogleFonts.vt323(
-            textStyle: const TextStyle(color: Colors.white, fontSize: 28),
+          style: TextStyle(fontFamily: 'VT323', color: Colors.white, fontSize: 28),
           ),
-        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -115,16 +112,14 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
         child: Text(
           isSelected ? '> $label <' : label,
           textAlign: TextAlign.center,
-          style: GoogleFonts.vt323(
-            textStyle: TextStyle(
+          style: TextStyle(fontFamily: 'VT323', 
               color: isSelected ? color : Colors.white54,
               fontSize: 24,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   @override
@@ -162,44 +157,40 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                         color: Colors.white54,
                         size: 18,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _model.currentDifficulty.name.toUpperCase(),
-                        style: GoogleFonts.vt323(
-                          textStyle: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 18,
-                          ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _model.currentDifficulty.name.toUpperCase(),
+                      style: const TextStyle(fontFamily: 'VT323', 
+                          color: Colors.white54,
+                          fontSize: 18,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // Timer (Top-center)
-          if (_model.currentPhase == GamePhase.playing)
-            Positioned(
-              top: 20,
-              left: 0,
-              right: 0,
-              child: IgnorePointer(
-                child: Center(
-                  child: Text(
-                    "${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s",
-                    style: GoogleFonts.vt323(
-                      textStyle: const TextStyle(
-                        color: Colors.white54, 
-                        fontSize: 32, 
-                        fontWeight: FontWeight.bold, 
-                        letterSpacing: 4
-                      )
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
+          ),
+
+        // Timer (Top-center)
+        if (_model.currentPhase == GamePhase.playing)
+          Positioned(
+            top: 20,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Center(
+                child: Text(
+                  "${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s",
+                  style: const TextStyle(fontFamily: 'VT323', 
+                      color: Colors.white54, 
+                      fontSize: 32, 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: 4
+                    ),
+                ),
+              ),
+            ),
+          ),
 
           // Echo Charges (Top-right)
           if (_model.currentPhase == GamePhase.playing)
@@ -216,14 +207,12 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
+                      const Text(
                         'PING:',
-                        style: GoogleFonts.vt323(
-                          textStyle: const TextStyle(
+                        style: TextStyle(fontFamily: 'VT323', 
                             color: Colors.white54,
                             fontSize: 18,
                           ),
-                        ),
                       ),
                       const SizedBox(width: 8),
                       ...List.generate(_model.currentEchoCharges, (index) => 
@@ -254,19 +243,17 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                     border: Border.all(color: Colors.white24, width: 1),
                     color: Colors.black.withValues(alpha: 0.6),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.pause, color: Colors.white54, size: 18),
-                      const SizedBox(width: 8),
+                       Icon(Icons.pause, color: Colors.white54, size: 18),
+                       SizedBox(width: 8),
                       Text(
                         'PAUSE',
-                        style: GoogleFonts.vt323(
-                          textStyle: const TextStyle(
+                        style: TextStyle(fontFamily: 'VT323', 
                             color: Colors.white54,
                             fontSize: 18,
                           ),
-                        ),
                       ),
                     ],
                   ),
@@ -312,9 +299,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                       )
                     ]
                   ),
-                  child: Center(
-                    child: Text("[PING]", style: GoogleFonts.vt323(
-                      textStyle: const TextStyle(
+                  child: const Center(
+                    child: Text("[PING]", style: TextStyle(fontFamily: 'VT323', 
                         color: Colors.white, 
                         fontWeight: FontWeight.bold,
                         fontSize: 22,
@@ -323,7 +309,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                   ),
                 ),
               ),
-            ),
+            
 
           // PAUSE OVERLAY
           if (_model.currentPhase == GamePhase.paused)
@@ -339,17 +325,15 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
+                      const Text(
                         "PAUSED",
-                        style: GoogleFonts.vt323(
-                          textStyle: const TextStyle(
+                        style: TextStyle(fontFamily: 'VT323', 
                             fontSize: 64,
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 8,
                             shadows: [Shadow(color: Colors.cyanAccent, blurRadius: 15)],
                           ),
-                        ),
                       ),
                       const SizedBox(height: 40),
                       
@@ -363,19 +347,17 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                             border: Border.all(color: Colors.greenAccent, width: 2),
                             color: Colors.greenAccent.withValues(alpha: 0.1),
                           ),
-                          child: Text(
-                            "[ RESUME ]",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.vt323(
-                              textStyle: const TextStyle(
-                                fontSize: 28,
-                                color: Colors.greenAccent,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: const Text(
+                              "[ RESUME ]",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontFamily: 'VT323', 
+                                  fontSize: 28,
+                                  color: Colors.greenAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
                             ),
                           ),
                         ),
-                      ),
                       
                       const SizedBox(height: 20),
                       
@@ -395,18 +377,16 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                             border: Border.all(color: Colors.white24, width: 1),
                             color: Colors.white.withValues(alpha: 0.05),
                           ),
-                          child: Text(
-                            "[ MAIN MENU ]",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.vt323(
-                              textStyle: const TextStyle(
-                                fontSize: 24,
-                                color: Colors.white54,
-                              ),
+                            child: const Text(
+                              "[ MAIN MENU ]",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontFamily: 'VT323', 
+                                  fontSize: 24,
+                                  color: Colors.white54,
+                                ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -428,9 +408,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("SIGNAL LOST", 
-                      style: GoogleFonts.vt323(
-                        textStyle: const TextStyle(
+                    const Text("SIGNAL LOST", 
+                      style: TextStyle(fontFamily: 'VT323', 
                           fontSize: 72, 
                           color: Colors.redAccent, 
                           fontWeight: FontWeight.bold, 
@@ -439,14 +418,11 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                             Shadow(color: Colors.red, blurRadius: 20, offset: Offset(0, 0)),
                             Shadow(color: Colors.white70, blurRadius: 2, offset: Offset(-2, 2)),
                           ]
-                        )
-                      )
+                        ),
                     ),
                     const SizedBox(height: 10),
-                    Text("> fatal error: subject terminated_", 
-                      style: GoogleFonts.vt323(
-                        textStyle: const TextStyle(fontSize: 24, color: Colors.white54)
-                      )
+                    const Text("> fatal error: subject terminated_", 
+                      style: TextStyle(fontFamily: 'VT323', fontSize: 24, color: Colors.white54)
                     ),
                     const SizedBox(height: 50),
                     Row(
@@ -465,9 +441,9 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                               MaterialPageRoute(builder: (context) => const MainMenu()),
                             );
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            child: Text("[ BACK ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ BACK ]", style: TextStyle(fontFamily: 'VT323', fontSize: 24)),
                           ),
                         ),
                         const SizedBox(width: 20),
@@ -479,9 +455,9 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                           ),
                           onPressed: () => _model.resetGame(),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            child: Text("[ REBOOT SYSTEM ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 28))),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ REBOOT SYSTEM ]", style: TextStyle(fontFamily: 'VT323', fontSize: 28)),
                           ),
                         ),
                       ],
@@ -499,26 +475,24 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("CONNECTION SECURED", 
-                      style: GoogleFonts.vt323(
-                        textStyle: const TextStyle(
+                    const Text("CONNECTION SECURED", 
+                      style: TextStyle(fontFamily: 'VT323', 
                           fontSize: 50, 
                           color: Colors.greenAccent, 
                           fontWeight: FontWeight.bold, 
                           letterSpacing: 5,
-                          shadows: [Shadow(color: Colors.green, blurRadius: 15)]
-                        )
-                      )
+                          shadows: [Shadow(color: Colors.green, blurRadius: 15)],
+                        ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       "> time_elapsed: ${(_model.elapsedMilliseconds / 1000).toStringAsFixed(2)}s", 
-                      style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 28, color: Colors.white70))
+                      style: const TextStyle(fontFamily: 'VT323', fontSize: 28, color: Colors.white70),
                     ),
                     if (_model.bestTimeMilliseconds != null)
                       Text(
                         "> personal_best: ${(_model.bestTimeMilliseconds! / 1000).toStringAsFixed(2)}s", 
-                        style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24, color: Colors.white54))
+                        style: const TextStyle(fontFamily: 'VT323', fontSize: 24, color: Colors.white54),
                       ),
                     const SizedBox(height: 40),
                     Row(
@@ -537,9 +511,9 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                               MaterialPageRoute(builder: (context) => const MainMenu()),
                             );
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            child: Text("[ BACK ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ BACK ]", style: TextStyle(fontFamily: 'VT323', fontSize: 24)),
                           ),
                         ),
                         const SizedBox(width: 20),
@@ -551,13 +525,13 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                           ),
                           onPressed: () => _model.resetGame(),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            child: Text("[ INITIATE NEXT SEQUENCE ]", style: GoogleFonts.vt323(textStyle: const TextStyle(fontSize: 24))),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            child: Text("[ INITIATE NEXT SEQUENCE ]", style: TextStyle(fontFamily: 'VT323', fontSize: 24)),
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
